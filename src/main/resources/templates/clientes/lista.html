@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes | SpaceTrack</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<main class="contenedor">
+    <header class="encabezado">
+        <div>
+            <p class="marca">SPACETRACK / CITY URBAN BOGOTA</p>
+            <h1>Clientes</h1>
+            <p class="subtitulo">Empresas contratantes registradas para la operacion de distribucion.</p>
+        </div>
+        <a class="boton primario" th:href="@{/clientes/nuevo}">Registrar cliente</a>
+    </header>
+
+    <p class="mensaje exito" th:if="${exito}" th:text="${exito}"></p>
+
+    <section class="tabla-contenedor" th:if="${!clientes.isEmpty()}">
+        <table>
+            <thead><tr><th>Empresa</th><th>NIT</th><th>Contacto</th><th>Telefono</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody>
+            <tr th:each="cliente : ${clientes}">
+                <td><strong th:text="${cliente.razonSocial}"></strong><span th:text="${cliente.correoContacto}"></span></td>
+                <td th:text="${cliente.nit}"></td>
+                <td th:text="${cliente.nombreContacto}"></td>
+                <td th:text="${cliente.telefonoContacto}"></td>
+                <td><span class="estado" th:classappend="${cliente.activo} ? ' activo' : ' inactivo'" th:text="${cliente.activo} ? 'Activo' : 'Inactivo'"></span></td>
+                <td class="acciones">
+                    <a class="boton secundario" th:href="@{/clientes/{id}/editar(id=${cliente.id})}">Editar</a>
+                    <form th:action="@{/clientes/{id}/eliminar(id=${cliente.id})}" method="post">
+                        <button class="boton peligro" type="submit" onclick="return confirm('¿Eliminar este cliente?')">Eliminar</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+    <section class="vacio" th:if="${clientes.isEmpty()}">
+        <h2>Aun no hay clientes registrados</h2>
+        <p>Registra la primera empresa contratante para iniciar la gestion de operaciones.</p>
+    </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${modoEdicion} ? 'Editar cliente | SpaceTrack' : 'Nuevo cliente | SpaceTrack'"></title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<main class="contenedor formulario-contenedor">
+    <a class="volver" th:href="@{/clientes}">Volver a clientes</a>
+    <header class="encabezado compacto">
+        <div>
+            <p class="marca">GESTION DE CLIENTES</p>
+            <h1 th:text="${modoEdicion} ? 'Editar cliente' : 'Registrar cliente'"></h1>
+        </div>
+    </header>
+    <form class="formulario" th:object="${cliente}" method="post"
+          th:action="${modoEdicion} ? @{/clientes/{id}(id=${clienteId})} : @{/clientes}">
+        <p class="mensaje error" th:if="${#fields.hasGlobalErrors()}" th:each="error : ${#fields.globalErrors()}" th:text="${error}"></p>
+        <div class="campo ancho"><label for="razonSocial">Razon social</label><input id="razonSocial" th:field="*{razonSocial}" autofocus><small th:errors="*{razonSocial}"></small></div>
+        <div class="campo"><label for="nit">NIT</label><input id="nit" th:field="*{nit}" placeholder="900123456-7"><small th:errors="*{nit}"></small></div>
+        <div class="campo"><label for="nombreContacto">Nombre de contacto</label><input id="nombreContacto" th:field="*{nombreContacto}"><small th:errors="*{nombreContacto}"></small></div>
+        <div class="campo"><label for="correoContacto">Correo de contacto</label><input id="correoContacto" type="email" th:field="*{correoContacto}"><small th:errors="*{correoContacto}"></small></div>
+        <div class="campo"><label for="telefonoContacto">Telefono de contacto</label><input id="telefonoContacto" th:field="*{telefonoContacto}"><small th:errors="*{telefonoContacto}"></small></div>
+        <div class="campo ancho"><label for="direccion">Direccion</label><input id="direccion" th:field="*{direccion}"><small th:errors="*{direccion}"></small></div>
+        <label class="interruptor"><input type="checkbox" th:field="*{activo}"> Cliente activo</label>
+        <div class="formulario-acciones"><a class="boton secundario" th:href="@{/clientes}">Cancelar</a><button class="boton primario" type="submit" th:text="${modoEdicion} ? 'Guardar cambios' : 'Registrar cliente'"></button></div>
+    </form>
+</main>
+</body>
+</html>
