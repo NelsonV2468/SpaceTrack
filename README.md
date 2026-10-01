@@ -1,6 +1,6 @@
 # SpaceTrack - Gestion de clientes
 
-Primer modulo de SpaceTrack para CITY URBAN BOGOTA. Registra y administra las empresas contratantes que despues se asociaran a operaciones, rutas, vehiculos y conductores.
+Modulo de Gestion de SpaceTrack para CITY URBAN BOGOTA. Centraliza empresas contratantes, vehiculos, conductores y operaciones/contratos que despues se asociaran a las rutas.
 
 ## Tecnologias
 
@@ -29,6 +29,10 @@ La interfaz web y la API usan el mismo servicio, con lo cual las reglas de NIT y
 - Marcar un cliente como activo o inactivo.
 - Guardar fecha de creacion y actualizacion.
 - Exponer API REST preparada para futuras integraciones.
+- Registrar, editar, consultar y eliminar vehiculos de la flota.
+- Registrar, editar, consultar y eliminar conductores con licencia vigente.
+- Registrar contratos/operaciones asociados obligatoriamente a un cliente.
+- Validar placa, documento, licencia y codigo de contrato como datos unicos.
 
 ## Ejecutar en IntelliJ IDEA
 
@@ -49,6 +53,14 @@ La consola H2 queda disponible en `http://localhost:8080/h2-console`. Usa la URL
 | POST | `/api/clientes` | Registra un cliente |
 | PUT | `/api/clientes/{id}` | Actualiza un cliente |
 | DELETE | `/api/clientes/{id}` | Elimina un cliente |
+
+Las pantallas de gestion estan disponibles en `/clientes`, `/vehiculos`, `/conductores` y `/operaciones`.
+
+| Metodo | Ruta | Funcion |
+|---|---|---|
+| GET, POST, PUT, DELETE | `/api/vehiculos` | Administra la flota |
+| GET, POST, PUT, DELETE | `/api/conductores` | Administra conductores |
+| GET, POST, PUT, DELETE | `/api/operaciones` | Administra contratos y operaciones |
 
 Ejemplo para crear un cliente:
 
