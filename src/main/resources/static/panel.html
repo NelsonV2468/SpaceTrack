@@ -45,7 +45,12 @@
     tbody tr:last-child td { border-bottom: 0; }
     td .sec { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
     .etiqueta { border-radius: 4px; display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 8px; }
-    .si { background: #d1fae5; color: #065f46; } .no { background: #e2e8f0; color: #475569; } .alerta { background: #fef3c7; color: #92400e; }
+    .si { background: #d1fae5; color: #065f46; } .curso { background: #dbeafe; color: #1e40af; } .no { background: #e2e8f0; color: #475569; } .alerta { background: #fef3c7; color: #92400e; }
+    .filtro { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 14px; }
+    .filtro select { width: auto; min-width: 180px; }
+    .acciones-fila { display: flex; gap: 6px; flex-wrap: wrap; }
+    .accion { background: #fff; border: 1px solid var(--line); border-radius: 6px; color: var(--brand); cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; min-height: 32px; padding: 6px 10px; }
+    .accion:hover { border-color: var(--brand); }
     .vacio { padding: 46px 24px; text-align: center; color: var(--muted); }
     .vacio strong { color: var(--ink); display: block; font-size: 17px; margin-bottom: 6px; }
 
@@ -237,8 +242,16 @@ const MODULOS = {
             ['Ruta', r => doble(r.codigo, r.nombre)],
             ['Zona y contrato', r => doble(r.nombreZona, r.codigoContrato)],
             ['Recorrido', r => doble(r.puntoOrigen + ' → ' + r.puntoDestino, r.distanciaEstimadaKm + ' km')],
-            ['Entregas', r => texto(r.numeroEntregasProgramadas)]
+            ['Entregas', r => texto(r.numeroEntregasProgramadas)],
+            ['Estado', r => estadoRuta(r)]
         ],
+        // Filtro por estado y acciones del ciclo de vida de la ruta (ON-11).
+        filtro: { parametro: 'estado', etiqueta: 'Filtrar por estado', opciones: ['PENDIENTE', 'EN_CURSO', 'FINALIZADA'] },
+        acciones: [
+            { texto: 'Iniciar', visible: r => r.estado === 'PENDIENTE', ruta: id => '/' + id + '/iniciar', exito: 'Ruta iniciada.' },
+            { texto: 'Finalizar', visible: r => r.estado === 'EN_CURSO', ruta: id => '/' + id + '/finalizar', exito: 'Ruta finalizada.' }
+        ],
+        puedeEliminar: r => r.estado === 'PENDIENTE',
         campos: [
             { nombre: 'codigo', etiqueta: 'Codigo', ayuda: 'Ej: R-001' },
             { nombre: 'nombre', etiqueta: 'Nombre' },
@@ -255,7 +268,7 @@ const MODULOS = {
 // ------------------------------------------------------------------
 // Estado y utilidades
 // ------------------------------------------------------------------
-const estado = { vista: 'inicio', datos: {}, mensaje: null };
+const estado = { vista: 'inicio', datos: {}, mensaje: null, filtros: {}, totales: {} };
 const $contenido = document.getElementById('contenido');
 
 function hoy(dias) {
@@ -278,6 +291,13 @@ function texto(valor) { return document.createTextNode(valor ?? ''); }
 function doble(principal, secundario) {
     return el('div', {}, [el('strong', { texto: principal ?? '' }), secundario ? el('span', { class: 'sec', texto: secundario }) : null]);
 }
+function fechaHora(valor) { return valor ? valor.slice(0, 16).replace('T', ' ') : ''; }
+function estadoRuta(r) {
+    const clases = { PENDIENTE: 'no', EN_CURSO: 'curso', FINALIZADA: 'si' };
+    const detalle = r.estado === 'EN_CURSO' ? 'Desde ' + fechaHora(r.fechaInicioReal)
+        : r.estado === 'FINALIZADA' ? 'Cerrada ' + fechaHora(r.fechaFinReal) : '';
+    return el('div', {}, [etiqueta(r.estado.replace('_', ' '), clases[r.estado] || 'no'), detalle ? el('span', { class: 'sec', texto: detalle }) : null]);
+}
 function etiqueta(valor, clase) { return el('span', { class: 'etiqueta ' + clase, texto: valor }); }
 
 async function api(metodo, url, cuerpo) {
@@ -298,7 +318,12 @@ async function api(metodo, url, cuerpo) {
 
 async function cargar(clave) {
     try {
-        estado.datos[clave] = await api('GET', MODULOS[clave].api);
+        const modulo = MODULOS[clave];
+        const valorFiltro = modulo.filtro && estado.vista === clave ? estado.filtros[clave] : '';
+        const url = modulo.api + (valorFiltro ? '?' + modulo.filtro.parametro + '=' + encodeURIComponent(valorFiltro) : '');
+        estado.datos[clave] = await api('GET', url);
+        // El contador del menu siempre muestra el total, no el resultado filtrado.
+        if (!valorFiltro) estado.totales[clave] = estado.datos[clave].length;
     } catch (e) {
         estado.datos[clave] = null;
     }
@@ -318,7 +343,7 @@ function pintarMenu() {
             menu.append(el('p', { class: 'grupo', texto: grupoActual }));
         }
         const lista = estado.datos[clave];
-        menu.append(botonMenu(clave, modulo.titulo, Array.isArray(lista) ? lista.length : '-'));
+        menu.append(botonMenu(clave, modulo.titulo, Array.isArray(lista) ? (estado.totales[clave] ?? lista.length) : '-'));
     });
 }
 function botonMenu(clave, titulo, cantidad) {
@@ -389,19 +414,57 @@ function pintarModulo(clave) {
     ]));
     if (estado.mensaje) $contenido.append(el('p', { class: 'mensaje ' + estado.mensaje.tipo, texto: estado.mensaje.texto }));
     $contenido.append(el('div', { id: 'zona-form' }));
+    if (modulo.filtro) $contenido.append(barraFiltro(clave));
 
     if (lista === null) {
         $contenido.append(el('section', { class: 'caja vacio' }, [el('strong', { texto: 'No se pudo cargar la informacion' }), texto('Verifica que la aplicacion este corriendo.')]));
         return;
     }
     if (!lista.length) {
-        $contenido.append(el('section', { class: 'caja vacio' }, [el('strong', { texto: 'Aun no hay registros' }), texto('Usa el boton "Registrar ' + modulo.singular + '" para crear el primero.')]));
+        const filtrado = modulo.filtro && estado.filtros[clave];
+        $contenido.append(el('section', { class: 'caja vacio' }, filtrado
+            ? [el('strong', { texto: 'No hay registros en estado ' + estado.filtros[clave].replace('_', ' ') }), texto('Cambia el filtro para ver otros registros.')]
+            : [el('strong', { texto: 'Aun no hay registros' }), texto('Usa el boton "Registrar ' + modulo.singular + '" para crear el primero.')]));
         return;
     }
     const encabezados = modulo.columnas.map(([titulo]) => el('th', { texto: titulo })).concat(el('th', { texto: '' }));
     const filas = lista.map(item => el('tr', {}, modulo.columnas.map(([, render]) => el('td', {}, render(item)))
-        .concat(el('td', {}, el('button', { class: 'boton peligro', onclick: () => eliminar(clave, item.id) }, texto('Eliminar'))))));
+        .concat(el('td', {}, accionesFila(clave, item)))));
     $contenido.append(el('section', { class: 'caja tabla' }, el('table', {}, [el('thead', {}, el('tr', {}, encabezados)), el('tbody', {}, filas)])));
+}
+
+function barraFiltro(clave) {
+    const filtro = MODULOS[clave].filtro;
+    const select = el('select', { id: 'filtro-' + clave, onchange: async (evento) => {
+        estado.filtros[clave] = evento.target.value;
+        estado.mensaje = null;
+        await cargar(clave);
+        pintar();
+    } }, el('option', { value: '', texto: 'Todos' }));
+    filtro.opciones.forEach(op => select.append(el('option', { value: op, texto: op.replace('_', ' ') })));
+    select.value = estado.filtros[clave] || '';
+    return el('div', { class: 'filtro' }, [el('label', { for: 'filtro-' + clave, texto: filtro.etiqueta }), select]);
+}
+
+function accionesFila(clave, item) {
+    const modulo = MODULOS[clave];
+    const botones = (modulo.acciones || []).filter(accion => accion.visible(item))
+        .map(accion => el('button', { class: 'accion', onclick: () => ejecutarAccion(clave, accion, item.id) }, texto(accion.texto)));
+    if (!modulo.puedeEliminar || modulo.puedeEliminar(item)) {
+        botones.push(el('button', { class: 'boton peligro', onclick: () => eliminar(clave, item.id) }, texto('Eliminar')));
+    }
+    return el('div', { class: 'acciones-fila' }, botones);
+}
+
+async function ejecutarAccion(clave, accion, id) {
+    try {
+        await api('PATCH', MODULOS[clave].api + accion.ruta(id));
+        estado.mensaje = { tipo: 'exito', texto: accion.exito };
+    } catch (error) {
+        estado.mensaje = { tipo: 'error', texto: error.message };
+    }
+    await cargar(clave);
+    pintar();
 }
 
 async function abrirFormulario(clave) {
