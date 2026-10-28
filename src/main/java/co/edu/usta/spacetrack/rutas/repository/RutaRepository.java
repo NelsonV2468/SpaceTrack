@@ -1,5 +1,6 @@
 package co.edu.usta.spacetrack.rutas.repository;
 
+import co.edu.usta.spacetrack.rutas.domain.EstadoRuta;
 import co.edu.usta.spacetrack.rutas.domain.Ruta;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,4 +11,5 @@ public interface RutaRepository extends JpaRepository<Ruta, Long> {
     boolean existsByCodigoIgnoreCaseAndIdNot(String codigo, Long id);
     boolean existsByZonaId(Long zonaId);
     List<Ruta> findAllByOrderByCodigoAsc();
+    List<Ruta> findByEstadoOrderByCodigoAsc(EstadoRuta estado);
 }

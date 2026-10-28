@@ -4,6 +4,8 @@ import co.edu.usta.spacetrack.operaciones.domain.Operacion;
 import co.edu.usta.spacetrack.zonas.domain.Zona;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -13,6 +15,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
@@ -52,6 +55,17 @@ public class Ruta {
     @Column(nullable = false)
     private Integer numeroEntregasProgramadas;
 
+    // El valor por defecto en BD permite agregar la columna a rutas ya registradas.
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'PENDIENTE'")
+    @Column(nullable = false, length = 20)
+    private EstadoRuta estado = EstadoRuta.PENDIENTE;
+
+    // Momentos reales en que la ruta se inicio y se cerro.
+    private LocalDateTime fechaInicioReal;
+
+    private LocalDateTime fechaFinReal;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
 
@@ -87,6 +101,12 @@ public class Ruta {
     public void setDistanciaEstimadaKm(Double distanciaEstimadaKm) { this.distanciaEstimadaKm = distanciaEstimadaKm; }
     public Integer getNumeroEntregasProgramadas() { return numeroEntregasProgramadas; }
     public void setNumeroEntregasProgramadas(Integer numeroEntregasProgramadas) { this.numeroEntregasProgramadas = numeroEntregasProgramadas; }
+    public EstadoRuta getEstado() { return estado; }
+    public void setEstado(EstadoRuta estado) { this.estado = estado; }
+    public LocalDateTime getFechaInicioReal() { return fechaInicioReal; }
+    public void setFechaInicioReal(LocalDateTime fechaInicioReal) { this.fechaInicioReal = fechaInicioReal; }
+    public LocalDateTime getFechaFinReal() { return fechaFinReal; }
+    public void setFechaFinReal(LocalDateTime fechaFinReal) { this.fechaFinReal = fechaFinReal; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
 }

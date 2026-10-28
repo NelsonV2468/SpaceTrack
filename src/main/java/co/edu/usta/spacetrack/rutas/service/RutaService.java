@@ -3,6 +3,7 @@ package co.edu.usta.spacetrack.rutas.service;
 import co.edu.usta.spacetrack.operaciones.domain.EstadoOperacion;
 import co.edu.usta.spacetrack.operaciones.domain.Operacion;
 import co.edu.usta.spacetrack.operaciones.repository.OperacionRepository;
+import co.edu.usta.spacetrack.rutas.domain.EstadoRuta;
 import co.edu.usta.spacetrack.rutas.domain.Ruta;
 import co.edu.usta.spacetrack.rutas.dto.RutaRequest;
 import co.edu.usta.spacetrack.rutas.dto.RutaResponse;
@@ -14,6 +15,7 @@ import co.edu.usta.spacetrack.zonas.repository.ZonaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -30,8 +32,10 @@ public class RutaService {
         this.operacionRepository = operacionRepository;
     }
 
-    public List<RutaResponse> listar() {
-        return rutaRepository.findAllByOrderByCodigoAsc().stream().map(this::aResponse).toList();
+    public List<RutaResponse> listar(EstadoRuta estado) {
+        List<Ruta> rutas = estado == null ? rutaRepository.findAllByOrderByCodigoAsc()
+                : rutaRepository.findByEstadoOrderByCodigoAsc(estado);
+        return rutas.stream().map(this::aResponse).toList();
     }
 
     public RutaResponse obtenerPorId(Long id) {
@@ -49,6 +53,9 @@ public class RutaService {
     @Transactional
     public RutaResponse actualizar(Long id, RutaRequest solicitud) {
         Ruta ruta = buscarEntidad(id);
+        if (ruta.getEstado() == EstadoRuta.FINALIZADA) {
+            throw new ReglaDeNegocioException("No se puede editar una ruta finalizada");
+        }
         validarCodigoUnico(solicitud.codigo(), id);
         copiarDatos(solicitud, ruta);
         return aResponse(rutaRepository.save(ruta));
@@ -56,7 +63,37 @@ public class RutaService {
 
     @Transactional
     public void eliminar(Long id) {
-        rutaRepository.delete(buscarEntidad(id));
+        Ruta ruta = buscarEntidad(id);
+        // Las rutas en curso o finalizadas se conservan como historial de la operacion.
+        if (ruta.getEstado() != EstadoRuta.PENDIENTE) {
+            throw new ReglaDeNegocioException("Solo se pueden eliminar rutas en estado PENDIENTE");
+        }
+        rutaRepository.delete(ruta);
+    }
+
+    @Transactional
+    public RutaResponse iniciar(Long id) {
+        Ruta ruta = buscarEntidad(id);
+        validarEstadoActual(ruta, EstadoRuta.PENDIENTE, "iniciar");
+        ruta.setEstado(EstadoRuta.EN_CURSO);
+        ruta.setFechaInicioReal(LocalDateTime.now());
+        return aResponse(rutaRepository.save(ruta));
+    }
+
+    @Transactional
+    public RutaResponse finalizar(Long id) {
+        Ruta ruta = buscarEntidad(id);
+        validarEstadoActual(ruta, EstadoRuta.EN_CURSO, "finalizar");
+        ruta.setEstado(EstadoRuta.FINALIZADA);
+        ruta.setFechaFinReal(LocalDateTime.now());
+        return aResponse(rutaRepository.save(ruta));
+    }
+
+    private void validarEstadoActual(Ruta ruta, EstadoRuta esperado, String accion) {
+        if (ruta.getEstado() != esperado) {
+            throw new ReglaDeNegocioException("Solo se puede " + accion + " una ruta en estado " + esperado
+                    + "; la ruta esta " + ruta.getEstado());
+        }
     }
 
     private Ruta buscarEntidad(Long id) {
@@ -107,7 +144,7 @@ public class RutaService {
         Operacion operacion = ruta.getOperacion();
         return new RutaResponse(ruta.getId(), ruta.getCodigo(), ruta.getNombre(), zona.getId(), zona.getNombre(),
                 operacion.getId(), operacion.getCodigoContrato(), ruta.getPuntoOrigen(), ruta.getPuntoDestino(),
-                ruta.getDistanciaEstimadaKm(), ruta.getNumeroEntregasProgramadas(), ruta.getFechaCreacion(),
-                ruta.getFechaActualizacion());
+                ruta.getDistanciaEstimadaKm(), ruta.getNumeroEntregasProgramadas(), ruta.getEstado(),
+                ruta.getFechaInicioReal(), ruta.getFechaFinReal(), ruta.getFechaCreacion(), ruta.getFechaActualizacion());
     }
 }
