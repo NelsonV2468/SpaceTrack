@@ -1,5 +1,6 @@
 package co.edu.usta.spacetrack.shared.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -22,6 +23,12 @@ public class ManejadorGlobalDeExcepciones {
     @ExceptionHandler(ReglaDeNegocioException.class)
     ResponseEntity<Map<String, Object>> manejarReglaDeNegocio(ReglaDeNegocioException ex) {
         return respuesta(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    // Por ejemplo, eliminar un vehiculo que sigue asignado a una ruta.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<Map<String, Object>> manejarIntegridad(DataIntegrityViolationException ex) {
+        return respuesta(HttpStatus.CONFLICT, "El registro esta relacionado con otros datos y no se puede modificar o eliminar");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

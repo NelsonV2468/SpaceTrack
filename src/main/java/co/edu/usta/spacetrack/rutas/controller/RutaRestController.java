@@ -1,8 +1,10 @@
 package co.edu.usta.spacetrack.rutas.controller;
 
 import co.edu.usta.spacetrack.rutas.domain.EstadoRuta;
+import co.edu.usta.spacetrack.rutas.dto.AsignacionRequest;
 import co.edu.usta.spacetrack.rutas.dto.RutaRequest;
 import co.edu.usta.spacetrack.rutas.dto.RutaResponse;
+import co.edu.usta.spacetrack.rutas.dto.UbicacionRutaResponse;
 import co.edu.usta.spacetrack.rutas.service.RutaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -26,9 +28,12 @@ public class RutaRestController {
     private final RutaService rutaService;
     public RutaRestController(RutaService rutaService) { this.rutaService = rutaService; }
     @GetMapping public List<RutaResponse> listar(@RequestParam(required = false) EstadoRuta estado) { return rutaService.listar(estado); }
+    @GetMapping("/ubicaciones") public List<UbicacionRutaResponse> ubicaciones() { return rutaService.ubicaciones(); }
     @GetMapping("/{id}") public RutaResponse obtener(@PathVariable Long id) { return rutaService.obtenerPorId(id); }
+    @GetMapping("/{id}/ubicacion") public UbicacionRutaResponse ubicacion(@PathVariable Long id) { return rutaService.ubicacion(id); }
     @PostMapping public ResponseEntity<RutaResponse> crear(@Valid @RequestBody RutaRequest solicitud) { return ResponseEntity.status(HttpStatus.CREATED).body(rutaService.crear(solicitud)); }
     @PutMapping("/{id}") public RutaResponse actualizar(@PathVariable Long id, @Valid @RequestBody RutaRequest solicitud) { return rutaService.actualizar(id, solicitud); }
+    @PatchMapping("/{id}/asignacion") public RutaResponse asignar(@PathVariable Long id, @Valid @RequestBody AsignacionRequest solicitud) { return rutaService.asignar(id, solicitud); }
     @PatchMapping("/{id}/iniciar") public RutaResponse iniciar(@PathVariable Long id) { return rutaService.iniciar(id); }
     @PatchMapping("/{id}/finalizar") public RutaResponse finalizar(@PathVariable Long id) { return rutaService.finalizar(id); }
     @DeleteMapping("/{id}") public ResponseEntity<Void> eliminar(@PathVariable Long id) { rutaService.eliminar(id); return ResponseEntity.noContent().build(); }

@@ -1,6 +1,8 @@
 package co.edu.usta.spacetrack.rutas.domain;
 
+import co.edu.usta.spacetrack.conductores.domain.Conductor;
 import co.edu.usta.spacetrack.operaciones.domain.Operacion;
+import co.edu.usta.spacetrack.vehiculos.domain.Vehiculo;
 import co.edu.usta.spacetrack.zonas.domain.Zona;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -55,6 +57,15 @@ public class Ruta {
     @Column(nullable = false)
     private Integer numeroEntregasProgramadas;
 
+    // Recursos asignados; son opcionales hasta que la ruta se inicia.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vehiculo_id")
+    private Vehiculo vehiculo;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conductor_id")
+    private Conductor conductor;
+
     // El valor por defecto en BD permite agregar la columna a rutas ya registradas.
     @Enumerated(EnumType.STRING)
     @ColumnDefault("'PENDIENTE'")
@@ -101,6 +112,10 @@ public class Ruta {
     public void setDistanciaEstimadaKm(Double distanciaEstimadaKm) { this.distanciaEstimadaKm = distanciaEstimadaKm; }
     public Integer getNumeroEntregasProgramadas() { return numeroEntregasProgramadas; }
     public void setNumeroEntregasProgramadas(Integer numeroEntregasProgramadas) { this.numeroEntregasProgramadas = numeroEntregasProgramadas; }
+    public Vehiculo getVehiculo() { return vehiculo; }
+    public void setVehiculo(Vehiculo vehiculo) { this.vehiculo = vehiculo; }
+    public Conductor getConductor() { return conductor; }
+    public void setConductor(Conductor conductor) { this.conductor = conductor; }
     public EstadoRuta getEstado() { return estado; }
     public void setEstado(EstadoRuta estado) { this.estado = estado; }
     public LocalDateTime getFechaInicioReal() { return fechaInicioReal; }

@@ -1,23 +1,31 @@
 package co.edu.usta.spacetrack.rutas.service;
 
+import co.edu.usta.spacetrack.conductores.domain.Conductor;
+import co.edu.usta.spacetrack.conductores.repository.ConductorRepository;
+import co.edu.usta.spacetrack.entregas.repository.EntregaRepository;
 import co.edu.usta.spacetrack.operaciones.domain.EstadoOperacion;
 import co.edu.usta.spacetrack.operaciones.domain.Operacion;
 import co.edu.usta.spacetrack.operaciones.repository.OperacionRepository;
 import co.edu.usta.spacetrack.rutas.domain.EstadoRuta;
 import co.edu.usta.spacetrack.rutas.domain.Ruta;
+import co.edu.usta.spacetrack.rutas.dto.AsignacionRequest;
 import co.edu.usta.spacetrack.rutas.dto.RutaResponse;
 import co.edu.usta.spacetrack.rutas.dto.RutaRequest;
 import co.edu.usta.spacetrack.rutas.repository.RutaRepository;
 import co.edu.usta.spacetrack.shared.exception.ReglaDeNegocioException;
+import co.edu.usta.spacetrack.vehiculos.domain.Vehiculo;
+import co.edu.usta.spacetrack.vehiculos.repository.VehiculoRepository;
 import co.edu.usta.spacetrack.zonas.domain.Zona;
 import co.edu.usta.spacetrack.zonas.repository.ZonaRepository;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -28,7 +36,11 @@ class RutaServiceTest {
     private final RutaRepository rutaRepository = mock(RutaRepository.class);
     private final ZonaRepository zonaRepository = mock(ZonaRepository.class);
     private final OperacionRepository operacionRepository = mock(OperacionRepository.class);
-    private final RutaService rutaService = new RutaService(rutaRepository, zonaRepository, operacionRepository);
+    private final VehiculoRepository vehiculoRepository = mock(VehiculoRepository.class);
+    private final ConductorRepository conductorRepository = mock(ConductorRepository.class);
+    private final EntregaRepository entregaRepository = mock(EntregaRepository.class);
+    private final RutaService rutaService = new RutaService(rutaRepository, zonaRepository, operacionRepository,
+            vehiculoRepository, conductorRepository, entregaRepository, new SimuladorUbicacion());
 
     @Test
     void rechazaCodigoDuplicado() {
@@ -64,7 +76,10 @@ class RutaServiceTest {
 
     @Test
     void iniciaRutaPendienteYGuardaHoraDeInicio() {
-        when(rutaRepository.findById(1L)).thenReturn(Optional.of(ruta(EstadoRuta.PENDIENTE)));
+        Ruta ruta = ruta(EstadoRuta.PENDIENTE);
+        ruta.setVehiculo(vehiculo(true, false));
+        ruta.setConductor(conductor(LocalDate.now().plusYears(1)));
+        when(rutaRepository.findById(1L)).thenReturn(Optional.of(ruta));
         when(rutaRepository.save(any(Ruta.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
 
         RutaResponse respuesta = rutaService.iniciar(1L);
@@ -122,8 +137,96 @@ class RutaServiceTest {
                 .hasMessage("No se puede editar una ruta finalizada");
     }
 
+    @Test
+    void noIniciaRutaSinVehiculoNiConductor() {
+        when(rutaRepository.findById(1L)).thenReturn(Optional.of(ruta(EstadoRuta.PENDIENTE)));
+
+        assertThatThrownBy(() -> rutaService.iniciar(1L))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("Asigne un vehiculo y un conductor antes de iniciar la ruta");
+    }
+
+    @Test
+    void asignaVehiculoYConductorALaRuta() {
+        when(rutaRepository.findById(1L)).thenReturn(Optional.of(ruta(EstadoRuta.PENDIENTE)));
+        when(vehiculoRepository.findById(5L)).thenReturn(Optional.of(vehiculo(true, false)));
+        when(conductorRepository.findById(7L)).thenReturn(Optional.of(conductor(LocalDate.now().plusMonths(6))));
+        when(rutaRepository.save(any(Ruta.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        RutaResponse respuesta = rutaService.asignar(1L, new AsignacionRequest(5L, 7L));
+
+        assertThat(respuesta.placaVehiculo()).isEqualTo("ABC123");
+        assertThat(respuesta.nombreConductor()).isEqualTo("Carlos Rojas");
+    }
+
+    @Test
+    void rechazaVehiculoSinCadenaDeFrioCuandoLaOperacionLaRequiere() {
+        Ruta ruta = ruta(EstadoRuta.PENDIENTE);
+        ruta.getOperacion().setRequiereCadenaFrio(true);
+        when(rutaRepository.findById(1L)).thenReturn(Optional.of(ruta));
+        when(vehiculoRepository.findById(5L)).thenReturn(Optional.of(vehiculo(true, false)));
+        when(conductorRepository.findById(7L)).thenReturn(Optional.of(conductor(LocalDate.now().plusMonths(6))));
+
+        assertThatThrownBy(() -> rutaService.asignar(1L, new AsignacionRequest(5L, 7L)))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("La operacion requiere cadena de frio y el vehiculo ABC123 no la tiene");
+    }
+
+    @Test
+    void rechazaConductorConLicenciaVencida() {
+        when(rutaRepository.findById(1L)).thenReturn(Optional.of(ruta(EstadoRuta.PENDIENTE)));
+        when(vehiculoRepository.findById(5L)).thenReturn(Optional.of(vehiculo(true, false)));
+        when(conductorRepository.findById(7L)).thenReturn(Optional.of(conductor(LocalDate.now().minusDays(1))));
+
+        assertThatThrownBy(() -> rutaService.asignar(1L, new AsignacionRequest(5L, 7L)))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("La licencia del conductor Carlos Rojas esta vencida");
+    }
+
+    @Test
+    void rechazaVehiculoQueYaEstaEnOtraRutaEnCurso() {
+        when(rutaRepository.findById(1L)).thenReturn(Optional.of(ruta(EstadoRuta.PENDIENTE)));
+        when(vehiculoRepository.findById(5L)).thenReturn(Optional.of(vehiculo(true, false)));
+        when(conductorRepository.findById(7L)).thenReturn(Optional.of(conductor(LocalDate.now().plusMonths(6))));
+        when(rutaRepository.existsByVehiculoIdAndEstadoAndIdNot(any(), eq(EstadoRuta.EN_CURSO), any())).thenReturn(true);
+
+        assertThatThrownBy(() -> rutaService.asignar(1L, new AsignacionRequest(5L, 7L)))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("El vehiculo ABC123 ya esta en otra ruta en curso");
+    }
+
+    @Test
+    void noProgramaMenosEntregasQueLasYaRegistradas() {
+        when(rutaRepository.findById(1L)).thenReturn(Optional.of(ruta(EstadoRuta.EN_CURSO)));
+        when(entregaRepository.countByRutaId(1L)).thenReturn(15L);
+
+        assertThatThrownBy(() -> rutaService.actualizar(1L, solicitud()))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("La ruta ya tiene 15 entregas registradas; no puede programar menos");
+    }
+
+    private Vehiculo vehiculo(boolean activo, boolean cadenaFrio) {
+        Vehiculo vehiculo = new Vehiculo();
+        vehiculo.setPlaca("ABC123");
+        vehiculo.setTipoVehiculo("Furgon");
+        vehiculo.setActivo(activo);
+        vehiculo.setRequiereCadenaFrio(cadenaFrio);
+        return vehiculo;
+    }
+
+    private Conductor conductor(LocalDate vencimientoLicencia) {
+        Conductor conductor = new Conductor();
+        conductor.setNombres("Carlos");
+        conductor.setApellidos("Rojas");
+        conductor.setActivo(true);
+        conductor.setFechaVencimientoLicencia(vencimientoLicencia);
+        return conductor;
+    }
+
     private Ruta ruta(EstadoRuta estado) {
         Ruta ruta = new Ruta();
+        ruta.setCodigo("R-001");
+        ruta.setNumeroEntregasProgramadas(12);
         ruta.setZona(new Zona());
         ruta.setOperacion(new Operacion());
         ruta.setEstado(estado);

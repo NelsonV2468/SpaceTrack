@@ -40,7 +40,7 @@ La interfaz web y la API usan el mismo servicio, con lo cual las reglas de NIT y
 2. Configura el SDK del proyecto como Java 21.
 3. Espera la descarga de dependencias de Maven.
 4. Ejecuta `SpaceTrackApplication`.
-5. Abre `http://localhost:8080/clientes`.
+5. Abre `http://localhost:8080` (redirige al panel `panel.html`).
 
 La consola H2 queda disponible en `http://localhost:8080/h2-console`. Usa la URL JDBC `jdbc:h2:file:./data/spacetrack`, usuario `sa` y contrasena vacia.
 
@@ -61,6 +61,22 @@ Las pantallas de gestion estan disponibles en `/clientes`, `/vehiculos`, `/condu
 | GET, POST, PUT, DELETE | `/api/vehiculos` | Administra la flota |
 | GET, POST, PUT, DELETE | `/api/conductores` | Administra conductores |
 | GET, POST, PUT, DELETE | `/api/operaciones` | Administra contratos y operaciones |
+
+| PATCH | `/api/rutas/{id}/asignacion` | Asigna vehiculo y conductor (`{"vehiculoId":1,"conductorId":1}`) |
+| PATCH | `/api/rutas/{id}/iniciar`, `/api/rutas/{id}/finalizar` | Cambia el estado de la ruta |
+| GET | `/api/rutas/{id}/ubicacion`, `/api/rutas/ubicaciones` | Ubicacion simulada del vehiculo |
+| GET, POST, DELETE | `/api/entregas` (`?rutaId=`) | Registro de entregas realizadas |
+
+## Panel de operacion
+
+`/panel.html` es la interfaz principal: tablero de control, monitoreo en mapa, gestion, planeacion y registro de entregas.
+
+- **Necesidades del cliente**: vehiculos, capacidad, cadena de frio, dias y horario por contrato.
+- **Asignacion**: cada ruta recibe un vehiculo y un conductor. Se valida que el vehiculo este activo y tenga cadena de frio si el contrato la exige, que el conductor este activo con licencia vigente y que ninguno este en otra ruta en curso. Una ruta no se puede iniciar sin ambos.
+- **Entregas programadas**: se definen por ruta y se comparan con las esperadas por el contrato.
+- **Estado de la ruta**: PENDIENTE -> EN_CURSO -> FINALIZADA.
+- **Entregas realizadas**: solo en rutas en curso, sin superar las programadas; las no entregadas exigen una novedad.
+- **Mapa**: plano esquematico de Bogota en SVG (funciona sin internet). Las paradas se ubican en la localidad de la zona y el vehiculo avanza entre ellas segun las entregas registradas; se actualiza cada 5 segundos. No es GPS real.
 
 Ejemplo para crear un cliente:
 
