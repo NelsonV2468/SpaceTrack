@@ -19,6 +19,7 @@ import co.edu.usta.spacetrack.zonas.domain.Zona;
 import co.edu.usta.spacetrack.zonas.repository.ZonaRepository;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -40,7 +41,8 @@ class RutaServiceTest {
     private final ConductorRepository conductorRepository = mock(ConductorRepository.class);
     private final EntregaRepository entregaRepository = mock(EntregaRepository.class);
     private final RutaService rutaService = new RutaService(rutaRepository, zonaRepository, operacionRepository,
-            vehiculoRepository, conductorRepository, entregaRepository, new SimuladorUbicacion());
+            vehiculoRepository, conductorRepository, entregaRepository, new SimuladorUbicacion(),
+            Clock.systemDefaultZone());
 
     @Test
     void rechazaCodigoDuplicado() {
