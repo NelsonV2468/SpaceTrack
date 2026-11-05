@@ -33,6 +33,8 @@ La interfaz web y la API usan el mismo servicio, con lo cual las reglas de NIT y
 - Registrar, editar, consultar y eliminar conductores con licencia vigente.
 - Registrar contratos/operaciones asociados obligatoriamente a un cliente.
 - Validar placa, documento, licencia y codigo de contrato como datos unicos.
+- Generar y guardar posiciones simuladas (sin GPS real) de cada ruta EN_CURSO, cada `spacetrack.simulacion.intervalo-segundos` (10 por defecto).
+- Recibir posiciones manuales por API, asociadas a una ruta existente y EN_CURSO; las demas se rechazan.
 
 ## Ejecutar en IntelliJ IDEA
 
@@ -66,6 +68,8 @@ Las pantallas de gestion estan disponibles en `/clientes`, `/vehiculos`, `/condu
 | PATCH | `/api/rutas/{id}/iniciar`, `/api/rutas/{id}/finalizar` | Cambia el estado de la ruta |
 | GET | `/api/rutas/{id}/ubicacion`, `/api/rutas/ubicaciones` | Ubicacion simulada del vehiculo |
 | GET, POST, DELETE | `/api/entregas` (`?rutaId=`) | Registro de entregas realizadas |
+| GET | `/api/posiciones` (`?rutaId=&limite=`) | Posiciones guardadas, las mas recientes primero (`limite` 100 por defecto) |
+| POST | `/api/posiciones` | Registra una posicion manual (`{"rutaId":1,"latitud":4.65,"longitud":-74.08,"velocidadKmh":30}`; `velocidadKmh` es opcional) |
 
 ## Panel de operacion
 

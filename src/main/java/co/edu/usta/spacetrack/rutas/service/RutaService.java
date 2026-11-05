@@ -23,6 +23,7 @@ import co.edu.usta.spacetrack.zonas.repository.ZonaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,10 +39,11 @@ public class RutaService {
     private final ConductorRepository conductorRepository;
     private final EntregaRepository entregaRepository;
     private final SimuladorUbicacion simuladorUbicacion;
+    private final Clock reloj;
 
     public RutaService(RutaRepository rutaRepository, ZonaRepository zonaRepository, OperacionRepository operacionRepository,
                        VehiculoRepository vehiculoRepository, ConductorRepository conductorRepository,
-                       EntregaRepository entregaRepository, SimuladorUbicacion simuladorUbicacion) {
+                       EntregaRepository entregaRepository, SimuladorUbicacion simuladorUbicacion, Clock reloj) {
         this.rutaRepository = rutaRepository;
         this.zonaRepository = zonaRepository;
         this.operacionRepository = operacionRepository;
@@ -49,6 +51,7 @@ public class RutaService {
         this.conductorRepository = conductorRepository;
         this.entregaRepository = entregaRepository;
         this.simuladorUbicacion = simuladorUbicacion;
+        this.reloj = reloj;
     }
 
     public List<RutaResponse> listar(EstadoRuta estado) {
@@ -145,7 +148,8 @@ public class RutaService {
     }
 
     private UbicacionRutaResponse calcularUbicacion(Ruta ruta) {
-        return simuladorUbicacion.calcular(ruta, entregaRepository.findByRutaIdOrderByIdAsc(ruta.getId()), LocalDateTime.now());
+        return simuladorUbicacion.calcular(ruta, entregaRepository.findByRutaIdOrderByIdAsc(ruta.getId()),
+                LocalDateTime.now(reloj));
     }
 
     private void validarVehiculo(Ruta ruta, Vehiculo vehiculo) {
