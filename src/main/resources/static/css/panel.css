@@ -242,6 +242,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible { border-color: 
 .unidad { border-bottom: 1px solid var(--line); cursor: pointer; display: grid; gap: 4px; padding: 12px 16px; }
 .unidad:hover { background: var(--navy-050); }
 .unidad.sel { background: var(--navy-100); box-shadow: inset 3px 0 0 var(--navy-600); }
+.unidad.sin-ubicacion { cursor: default; }
 .unidad .fila { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
 .unidad .color { border-radius: 2px; display: inline-block; height: 10px; width: 10px; }
 .unidad .desc { color: var(--muted); font-size: 12.5px; }

@@ -41,6 +41,8 @@ const MapaBogota = (() => {
     const xy = p => x(p.longitud ?? p[1]).toFixed(1) + ',' + y(p.latitud ?? p[0]).toFixed(1);
     const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const color = indice => COLORES[indice % COLORES.length];
+    // Solo una ruta en curso con coordenadas tiene un vehiculo que mostrar en el plano.
+    const tieneUbicacion = u => u.estado === 'EN_CURSO' && Number.isFinite(u.vehiculo?.latitud) && Number.isFinite(u.vehiculo?.longitud);
 
     function fondo(escala) {
         const partes = [];
@@ -80,10 +82,8 @@ const MapaBogota = (() => {
         partes.push('<polyline points="' + puntos.map(xy).join(' ') + '" fill="none" stroke="' + tono + '" stroke-width="' + ((resaltada ? 3 : 2) * escala)
             + '" stroke-dasharray="' + (6 * escala) + ' ' + (5 * escala) + '" stroke-opacity=".55" stroke-linejoin="round"/>');
         // Tramo ya recorrido: desde el CEDI hasta la posicion actual del vehiculo.
-        if (u.estado !== 'PENDIENTE') {
-            const hecho = puntos.slice(0, recorridos + 1).concat(u.estado === 'FINALIZADA' ? puntos.slice(recorridos + 1) : [u.vehiculo]);
-            partes.push('<polyline points="' + hecho.map(xy).join(' ') + '" fill="none" stroke="' + tono + '" stroke-width="' + ((resaltada ? 4.5 : 3) * escala) + '" stroke-linejoin="round" stroke-linecap="round"/>');
-        }
+        const hecho = puntos.slice(0, recorridos + 1).concat([u.vehiculo]);
+        partes.push('<polyline points="' + hecho.map(xy).join(' ') + '" fill="none" stroke="' + tono + '" stroke-width="' + ((resaltada ? 4.5 : 3) * escala) + '" stroke-linejoin="round" stroke-linecap="round"/>');
         u.paradas.forEach((p, i) => {
             const relleno = p.estado === 'ENTREGADA' ? '#0f7b4f' : p.estado === 'NO_ENTREGADA' ? '#c0392b' : '#ffffff';
             partes.push('<circle cx="' + x(p.longitud).toFixed(1) + '" cy="' + y(p.latitud).toFixed(1) + '" r="' + (5 * escala) + '" fill="' + relleno
@@ -102,7 +102,7 @@ const MapaBogota = (() => {
         const cx = x(u.vehiculo.longitud), cy = y(u.vehiculo.latitud);
         const texto = u.vehiculo.etiqueta;
         const ancho = (texto.length * 7.2 + 16) * escala, alto = 20 * escala;
-        const movimiento = u.estado === 'EN_CURSO' && u.velocidadKmh > 0;
+        const movimiento = u.velocidadKmh > 0;
         return '<g data-ruta="' + u.rutaId + '" style="cursor:pointer">'
             + (movimiento ? '<circle class="pulso" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="9" fill="' + tono + '" style="transform-box: fill-box"/>' : '')
             + '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + (7 * escala) + '" fill="' + tono + '" stroke="#fff" stroke-width="' + (2.5 * escala) + '"/>'
@@ -125,7 +125,8 @@ const MapaBogota = (() => {
         return [cx - ancho / 2, cy - alto / 2, ancho, alto];
     }
 
-    function dibujar(contenedor, ubicaciones, opciones = {}) {
+    function dibujar(contenedor, rutasRecibidas, opciones = {}) {
+        const ubicaciones = rutasRecibidas.filter(tieneUbicacion);
         const vista = opciones.enfocar ? caja(ubicaciones) : [0, 0, ANCHO, ALTO];
         const escala = Math.max(0.45, vista[2] / ANCHO);
         const seleccion = opciones.seleccion ?? null;
@@ -149,5 +150,5 @@ const MapaBogota = (() => {
         }
     }
 
-    return { dibujar, color: color };
+    return { dibujar, color: color, tieneUbicacion };
 })();
