@@ -80,7 +80,7 @@ Las pantallas de gestion estan disponibles en `/clientes`, `/vehiculos`, `/condu
 - **Entregas programadas**: se definen por ruta y se comparan con las esperadas por el contrato.
 - **Estado de la ruta**: PENDIENTE -> EN_CURSO -> FINALIZADA.
 - **Entregas realizadas**: solo en rutas en curso, sin superar las programadas; las no entregadas exigen una novedad.
-- **Mapa**: plano esquematico de Bogota en SVG (funciona sin internet). Las paradas se ubican en la localidad de la zona y el vehiculo avanza entre ellas segun las entregas registradas; se actualiza cada 5 segundos. No es GPS real.
+- **Mapa**: plano esquematico de Bogota en SVG (funciona sin internet). Las paradas se ubican en la localidad de la zona y el vehiculo avanza entre ellas segun las entregas registradas; se actualiza cada 5 segundos. Solo se dibujan vehiculos de rutas EN_CURSO; las demas rutas aparecen en la lista con un mensaje y sin punto en el plano. No es GPS real.
 
 Ejemplo para crear un cliente:
 

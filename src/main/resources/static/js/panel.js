@@ -77,6 +77,10 @@ function diasSemana(lista) {
 
 const ESTADOS_RUTA = { PENDIENTE: ['Pendiente', 'neutral'], EN_CURSO: ['En curso', 'info'], FINALIZADA: ['Finalizada', 'ok'] };
 function estadoRuta(estado) { const [t, c] = ESTADOS_RUTA[estado] || [estado, 'neutral']; return etiqueta(t, c); }
+function mensajeSinUbicacion(u) {
+    if (MapaBogota.tieneUbicacion(u)) return null;
+    return u.estado === 'EN_CURSO' ? 'Sin datos de ubicación todavía' : 'La ruta no está en curso: no hay ubicación para mostrar';
+}
 const ESTADOS_OPERACION = { ACTIVA: 'ok', PAUSADA: 'warn', FINALIZADA: 'neutral' };
 
 function barraEntregas(r, ancho) {
@@ -763,7 +767,9 @@ async function pintarDetalleRuta() {
         try {
             const u = await api('GET', '/api/rutas/' + id + '/ubicacion');
             MapaBogota.dibujar(lienzo, [u], { enfocar: true });
-            pieMapa.replaceChildren(el('span', { texto: u.descripcionPosicion + (u.velocidadKmh ? ' · ' + u.velocidadKmh + ' km/h' : '') }),
+            const sinUbicacion = mensajeSinUbicacion(u);
+            if (sinUbicacion) pieMapa.replaceChildren(el('span', { texto: sinUbicacion }));
+            else pieMapa.replaceChildren(el('span', { texto: u.descripcionPosicion + (u.velocidadKmh ? ' · ' + u.velocidadKmh + ' km/h' : '') }),
                 el('span', { class: 'num', texto: 'Avance del recorrido ' + Math.round(u.progreso * 100) + '% · Actualizado ' + u.calculadoEn.slice(11, 19) }));
         } catch (e) {
             pieMapa.textContent = e.message;
@@ -1017,19 +1023,22 @@ async function pintarMonitoreo() {
     let colores = {};
     const dibujar = () => {
         const visibles = ultimas.filter(u => estado.filtroMapa === 'TODAS' || u.estado === 'EN_CURSO' || (estado.filtroMapa === 'ACTIVAS' && u.estado === 'PENDIENTE'));
-        if (estado.seleccionMapa !== null && !visibles.some(u => u.rutaId === estado.seleccionMapa)) estado.seleccionMapa = null;
+        if (estado.seleccionMapa !== null && !visibles.some(u => u.rutaId === estado.seleccionMapa && MapaBogota.tieneUbicacion(u))) estado.seleccionMapa = null;
         MapaBogota.dibujar(lienzo, visibles, { seleccion: estado.seleccionMapa, colores, alSeleccionar: seleccionar });
         contador.textContent = visibles.length + (visibles.length === 1 ? ' ruta' : ' rutas');
-        lista.replaceChildren(...(visibles.length ? visibles.map(u => el('div', { class: 'unidad' + (estado.seleccionMapa === u.rutaId ? ' sel' : ''), onclick: () => seleccionar(u.rutaId) }, [
-            el('div', { class: 'fila' }, [el('strong', {}, [el('span', { class: 'color', style: 'background:' + colores[u.rutaId] + ';margin-right:8px' }), u.placaVehiculo || 'Sin vehículo']), estadoRuta(u.estado)]),
-            el('div', { class: 'desc', texto: u.codigo + ' · ' + u.nombre + (u.nombreConductor ? ' · ' + u.nombreConductor : '') }),
-            el('div', { class: 'desc', texto: u.descripcionPosicion + (u.velocidadKmh ? ' · ' + u.velocidadKmh + ' km/h' : '') }),
-            el('div', { class: 'fila' }, [
-                el('div', { class: 'progreso', style: 'flex:1' }, [el('div', { class: 'barra' }, el('i', { class: 'info', style: 'width:' + Math.round(u.progreso * 100) + '%' })),
-                    el('span', { class: 'cifra num', texto: u.entregasRegistradas + '/' + u.entregasProgramadas })]),
-                el('button', { class: 'enlace', onclick: e => { e.stopPropagation(); irDetalleRuta(u.rutaId); } }, 'Detalle')
-            ])
-        ])) : [vacio('Sin rutas para mostrar', estado.filtroMapa === 'EN_CURSO' ? 'Inicie una ruta para verla en el mapa.' : 'Registre rutas para verlas en el mapa.')]));
+        lista.replaceChildren(...(visibles.length ? visibles.map(u => {
+            const sinUbicacion = mensajeSinUbicacion(u);
+            return el('div', { class: 'unidad' + (sinUbicacion ? ' sin-ubicacion' : '') + (estado.seleccionMapa === u.rutaId ? ' sel' : ''), onclick: sinUbicacion ? null : () => seleccionar(u.rutaId) }, [
+                el('div', { class: 'fila' }, [el('strong', {}, [sinUbicacion ? null : el('span', { class: 'color', style: 'background:' + colores[u.rutaId] + ';margin-right:8px' }), u.placaVehiculo || 'Sin vehículo']), estadoRuta(u.estado)]),
+                el('div', { class: 'desc', texto: u.codigo + ' · ' + u.nombre + (u.nombreConductor ? ' · ' + u.nombreConductor : '') }),
+                el('div', { class: 'desc', texto: sinUbicacion || u.descripcionPosicion + (u.velocidadKmh ? ' · ' + u.velocidadKmh + ' km/h' : '') }),
+                el('div', { class: 'fila' }, [
+                    el('div', { class: 'progreso', style: 'flex:1' }, [el('div', { class: 'barra' }, el('i', { class: 'info', style: 'width:' + Math.round(u.progreso * 100) + '%' })),
+                        el('span', { class: 'cifra num', texto: u.entregasRegistradas + '/' + u.entregasProgramadas })]),
+                    el('button', { class: 'enlace', onclick: e => { e.stopPropagation(); irDetalleRuta(u.rutaId); } }, 'Detalle')
+                ])
+            ]);
+        }) : [vacio('Sin rutas para mostrar', estado.filtroMapa === 'EN_CURSO' ? 'Inicie una ruta para verla en el mapa.' : 'Registre rutas para verlas en la lista.')]));
     };
     const refrescar = async () => {
         try {
