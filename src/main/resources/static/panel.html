@@ -32,8 +32,12 @@
             <div class="meta">
                 <span class="fecha" id="fecha-actual"></span>
                 <div class="usuario">
-                    <span class="avatar" aria-hidden="true">CO</span>
-                    <span>Centro de operaciones</span>
+                    <span class="avatar" id="usuario-avatar" aria-hidden="true">CO</span>
+                    <span class="usuario-datos">
+                        <span id="usuario-nombre">Centro de operaciones</span>
+                        <span class="sec" id="usuario-rol"></span>
+                    </span>
+                    <button type="button" class="boton secundario chico" id="boton-salir">Salir</button>
                 </div>
             </div>
         </header>
@@ -41,6 +45,7 @@
     </div>
 </div>
 <script src="js/mapa.js"></script>
+<script src="js/sesion.js"></script>
 <script src="js/panel.js"></script>
 </body>
 </html>

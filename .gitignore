@@ -7,3 +7,10 @@ data/
 .mvn/
 mvnw
 mvnw.cmd
+.neon
+node_modules/
+.env
+.env.*
+!.env.example
+# Generado por "npm run build" (y dentro del Dockerfile).
+src/main/resources/static/js/login.bundle.js

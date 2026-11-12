@@ -277,7 +277,7 @@ async function api(metodo, url, cuerpo) {
         marcarServidor(true);
     } catch (e) {
         marcarServidor(false);
-        const error = new Error('No hay conexión con el servidor local. Verifique que SpaceTrack esté en ejecución.');
+        const error = new Error('No hay conexión con el servidor. Verifique que SpaceTrack esté en ejecución.');
         error.campos = {};
         throw error;
     }
@@ -304,7 +304,7 @@ const cargarVarios = claves => Promise.all(claves.map(c => cargar(c)));
 function marcarServidor(conectado) {
     const nodo = document.getElementById('estado-servidor');
     if (!nodo) return;
-    nodo.replaceChildren(el('span', { class: 'punto' + (conectado ? '' : ' caido') }), conectado ? 'Servidor local conectado' : 'Servidor sin conexión');
+    nodo.replaceChildren(el('span', { class: 'punto' + (conectado ? '' : ' caido') }), conectado ? 'Servidor conectado' : 'Servidor sin conexión');
 }
 
 // ------------------------------------------------------------------
@@ -532,8 +532,8 @@ function accionesFila(clave, item) {
     const m = MODULOS[clave];
     if (m.accionesFila) return m.accionesFila(item);
     return [
-        el('button', { class: 'boton secundario chico', onclick: () => abrirFormulario(clave, item) }, 'Editar'),
-        el('button', { class: 'boton peligro chico', onclick: () => eliminar(clave, item.id) }, 'Eliminar')
+        el('button', { class: 'boton secundario chico requiere-escritura', onclick: () => abrirFormulario(clave, item) }, 'Editar'),
+        el('button', { class: 'boton peligro chico solo-admin', onclick: () => eliminar(clave, item.id) }, 'Eliminar')
     ];
 }
 
@@ -978,7 +978,7 @@ function tablaEntregasGlobal(lista, rutasEnCurso) {
     tabla.querySelectorAll('tbody tr').forEach((fila, i) => {
         const e = lista[i];
         if (rutasEnCurso.has(e.rutaId)) {
-            fila.lastChild.append(el('button', { class: 'boton peligro chico', onclick: () => eliminar('entregas', e.id, () => ir('entregas', true)) }, 'Anular'));
+            fila.lastChild.append(el('button', { class: 'boton peligro chico solo-admin', onclick: () => eliminar('entregas', e.id, () => ir('entregas', true)) }, 'Anular'));
         }
     });
     return tabla;
@@ -1057,7 +1057,55 @@ async function pintarMonitoreo() {
 // ------------------------------------------------------------------
 // Arranque
 // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+// Usuarios y roles (solo administradores)
+// ------------------------------------------------------------------
+const ROLES = [['ADMIN', 'Administrador'], ['OPERADOR', 'Operador'], ['CONSULTA', 'Consulta'], ['PENDIENTE', 'Pendiente (sin acceso)']];
+const TONO_ROL = { ADMIN: 'info', OPERADOR: 'ok', CONSULTA: 'neutral', PENDIENTE: 'warn' };
+
+async function pintarUsuarios() {
+    migas('Administración', 'Usuarios');
+    await cargar('usuarios', '/api/usuarios');
+    $contenido.replaceChildren(encabezado('Usuarios y roles', 'Administrador: todo. Operador: registra y actualiza, no elimina. Consulta: solo lectura. Las cuentas nuevas quedan pendientes.'));
+    const aviso = avisoActual();
+    if (aviso) $contenido.append(aviso);
+    const lista = estado.datos.usuarios;
+    if (!Array.isArray(lista)) {
+        $contenido.append(el('section', { class: 'panel' }, vacio('No se pudo cargar la información', 'Intente de nuevo.')));
+        return;
+    }
+    const filas = lista.map(u => {
+        const propio = u.correo === estado.usuario.correo;
+        const selector = el('select', { 'aria-label': 'Rol de ' + u.correo, disabled: propio, style: 'width:auto;min-width:190px', onchange: async e => {
+            try {
+                await api('PATCH', '/api/usuarios/' + u.id + '/rol', { rol: e.target.value });
+                estado.mensaje = { tipo: 'ok', texto: 'Rol de ' + u.correo + ' actualizado.' };
+            } catch (error) {
+                estado.mensaje = { tipo: 'error', texto: error.message };
+            }
+            ir('usuarios', true);
+        } }, ROLES.map(([v, t]) => el('option', { value: v, texto: t })));
+        selector.value = u.rol;
+        return el('tr', {}, [
+            el('td', {}, doble(u.nombre, u.correo)),
+            el('td', {}, etiqueta(ROLES.find(r => r[0] === u.rol)[1], TONO_ROL[u.rol])),
+            el('td', { texto: u.ultimoIngreso ? fechaHora(u.ultimoIngreso) : '—' }),
+            el('td', { class: 'derecha' }, propio ? el('span', { class: 'sec', texto: 'Su cuenta' }) : selector)
+        ]);
+    });
+    $contenido.append(el('section', { class: 'panel' }, lista.length ? el('div', { class: 'tabla' }, el('table', {}, [
+        el('thead', {}, el('tr', {}, ['Usuario', 'Rol', 'Último ingreso', 'Cambiar rol'].map((t, i) => el('th', { class: i === 3 ? 'derecha' : '', texto: t })))),
+        el('tbody', {}, filas)
+    ])) : vacio('Sin usuarios', 'Los usuarios aparecen aquí después de su primer ingreso.')));
+}
+
 document.getElementById('fecha-actual').textContent = new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-const [vistaInicial, idInicial] = location.hash.slice(1).split('/');
-if (vistaInicial === 'ruta' && Number(idInicial)) irDetalleRuta(Number(idInicial));
-else ir(VISTAS_GENERALES[vistaInicial] || MODULOS[vistaInicial] ? vistaInicial : 'tablero');
+SpaceTrackSesion.listo.then(usuario => {
+    estado.usuario = usuario;
+    if (SpaceTrackSesion.esAdmin(usuario.rol)) {
+        MODULOS.usuarios = { grupo: 'Administración', titulo: 'Usuarios', singular: 'usuario', api: '/api/usuarios', icono: 'conductores', vista: () => pintarUsuarios() };
+    }
+    const [vistaInicial, idInicial] = location.hash.slice(1).split('/');
+    if (vistaInicial === 'ruta' && Number(idInicial)) irDetalleRuta(Number(idInicial));
+    else ir(VISTAS_GENERALES[vistaInicial] || MODULOS[vistaInicial] ? vistaInicial : 'tablero');
+}).catch(() => location.replace('/login.html'));

@@ -277,3 +277,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible { border-color: 
     .cifras { grid-template-columns: 1fr 1fr; }
     .buscador input { width: 100%; }
 }
+
+/* Sesion y roles: el servidor es quien niega el acceso; aqui solo se ocultan botones que no aplican. */
+.usuario-datos { display: flex; flex-direction: column; line-height: 1.2; }
+.usuario-datos .sec { font-size: .78rem; }
+body[data-rol="CONSULTA"] .boton.primario,
+body[data-rol="CONSULTA"] .requiere-escritura,
+body[data-rol="CONSULTA"] .solo-admin,
+body[data-rol="OPERADOR"] .solo-admin { display: none; }
