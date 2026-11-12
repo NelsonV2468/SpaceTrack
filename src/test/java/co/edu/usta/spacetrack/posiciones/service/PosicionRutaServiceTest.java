@@ -162,7 +162,7 @@ class PosicionRutaServiceTest {
     void rechazaLimiteNoPositivo() {
         assertThatThrownBy(() -> posicionService.listar(null, 0))
                 .isInstanceOf(ReglaDeNegocioException.class)
-                .hasMessage("El limite debe ser mayor a cero");
+                .hasMessage("El limite debe estar entre 1 y 1000");
     }
 
     private PosicionRuta posicionGuardada() {

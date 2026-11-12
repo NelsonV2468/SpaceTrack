@@ -3,13 +3,16 @@ package co.edu.usta.spacetrack.zonas.service;
 import co.edu.usta.spacetrack.rutas.repository.RutaRepository;
 import co.edu.usta.spacetrack.shared.exception.RecursoNoEncontradoException;
 import co.edu.usta.spacetrack.shared.exception.ReglaDeNegocioException;
+import co.edu.usta.spacetrack.zonas.domain.Localidad;
 import co.edu.usta.spacetrack.zonas.domain.Zona;
+import co.edu.usta.spacetrack.zonas.dto.LocalidadResponse;
 import co.edu.usta.spacetrack.zonas.dto.ZonaRequest;
 import co.edu.usta.spacetrack.zonas.dto.ZonaResponse;
 import co.edu.usta.spacetrack.zonas.repository.ZonaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -26,6 +29,12 @@ public class ZonaService {
 
     public List<ZonaResponse> listar() {
         return zonaRepository.findAllByOrderByNombreAsc().stream().map(this::aResponse).toList();
+    }
+
+    public List<LocalidadResponse> localidades() {
+        return Arrays.stream(Localidad.values())
+                .map(l -> new LocalidadResponse(l.name(), l.getNombre(), l.getLatitud(), l.getLongitud()))
+                .toList();
     }
 
     public ZonaResponse obtenerPorId(Long id) {
@@ -81,7 +90,11 @@ public class ZonaService {
     private void copiarDatos(ZonaRequest solicitud, Zona zona) {
         zona.setCodigo(solicitud.codigo().trim().toUpperCase());
         zona.setNombre(solicitud.nombre().trim());
-        zona.setLocalidad(solicitud.localidad().trim());
+        // Solo se aceptan localidades del catalogo para que la zona siempre se pueda ubicar en el mapa.
+        Localidad localidad = Localidad.buscar(solicitud.localidad())
+                .orElseThrow(() -> new ReglaDeNegocioException("La localidad '" + solicitud.localidad().trim()
+                        + "' no esta en el catalogo. Use una de: " + Localidad.nombresDisponibles()));
+        zona.setLocalidad(localidad.getNombre());
         zona.setDescripcion(solicitud.descripcion() == null || solicitud.descripcion().isBlank() ? null : solicitud.descripcion().trim());
         zona.setActiva(solicitud.activa());
     }

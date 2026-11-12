@@ -5,15 +5,15 @@ import co.edu.usta.spacetrack.rutas.domain.EstadoRuta;
 import co.edu.usta.spacetrack.rutas.domain.Ruta;
 import co.edu.usta.spacetrack.rutas.dto.PuntoMapa;
 import co.edu.usta.spacetrack.rutas.dto.UbicacionRutaResponse;
+import co.edu.usta.spacetrack.zonas.domain.Localidad;
 import org.springframework.stereotype.Component;
 
 import java.text.Normalizer;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 
 /**
@@ -33,33 +33,6 @@ public class SimuladorUbicacion {
 
     // El vehiculo se detiene antes de la parada hasta que se registre la entrega.
     private static final double AVANCE_MAXIMO_SIN_REGISTRO = 0.92;
-
-    private static final Map<String, double[]> LOCALIDADES = new LinkedHashMap<>();
-
-    static {
-        LOCALIDADES.put("rafael uribe", new double[]{4.5700, -74.1160});
-        LOCALIDADES.put("ciudad bolivar", new double[]{4.5450, -74.1500});
-        LOCALIDADES.put("antonio narino", new double[]{4.5880, -74.1020});
-        LOCALIDADES.put("barrios unidos", new double[]{4.6680, -74.0760});
-        LOCALIDADES.put("puente aranda", new double[]{4.6170, -74.1170});
-        LOCALIDADES.put("san cristobal", new double[]{4.5650, -74.0880});
-        LOCALIDADES.put("candelaria", new double[]{4.5960, -74.0740});
-        LOCALIDADES.put("teusaquillo", new double[]{4.6380, -74.0850});
-        LOCALIDADES.put("tunjuelito", new double[]{4.5760, -74.1330});
-        LOCALIDADES.put("chapinero", new double[]{4.6480, -74.0620});
-        LOCALIDADES.put("martires", new double[]{4.6050, -74.0920});
-        LOCALIDADES.put("santa fe", new double[]{4.6100, -74.0700});
-        LOCALIDADES.put("usaquen", new double[]{4.7110, -74.0300});
-        LOCALIDADES.put("engativa", new double[]{4.7070, -74.1100});
-        LOCALIDADES.put("fontibon", new double[]{4.6740, -74.1450});
-        LOCALIDADES.put("kennedy", new double[]{4.6300, -74.1550});
-        LOCALIDADES.put("mosquera", new double[]{4.7060, -74.2300});
-        LOCALIDADES.put("soacha", new double[]{4.5790, -74.2170});
-        LOCALIDADES.put("funza", new double[]{4.7160, -74.2110});
-        LOCALIDADES.put("usme", new double[]{4.5000, -74.1100});
-        LOCALIDADES.put("bosa", new double[]{4.6180, -74.1880});
-        LOCALIDADES.put("suba", new double[]{4.7420, -74.0840});
-    }
 
     public UbicacionRutaResponse calcular(Ruta ruta, List<Entrega> entregasEnOrden, LocalDateTime ahora) {
         Random aleatorio = new Random(ruta.getCodigo() == null ? 0 : ruta.getCodigo().hashCode());
@@ -124,14 +97,13 @@ public class SimuladorUbicacion {
     }
 
     static double[] centroDeZona(String localidad) {
-        String normalizada = normalizar(localidad);
-        for (Map.Entry<String, double[]> entrada : LOCALIDADES.entrySet()) {
-            if (normalizada.contains(entrada.getKey())) {
-                return entrada.getValue();
-            }
+        Optional<Localidad> conocida = Localidad.buscar(localidad);
+        if (conocida.isPresent()) {
+            return new double[]{conocida.get().getLatitud(), conocida.get().getLongitud()};
         }
-        // Localidad desconocida: un punto estable dentro del area urbana de Bogota.
-        int hash = Math.abs(normalizada.hashCode());
+        // Solo zonas antiguas, registradas antes del catalogo, pueden tener una localidad desconocida:
+        // se ubican en un punto estable dentro del area urbana de Bogota.
+        int hash = Math.abs(normalizar(localidad).hashCode());
         return new double[]{4.56 + (hash % 1000) / 1000.0 * 0.16, -74.17 + (hash / 1000 % 1000) / 1000.0 * 0.12};
     }
 

@@ -22,6 +22,9 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class PosicionRutaService {
 
+    // Evita respuestas desproporcionadas al consultar el historial.
+    static final int LIMITE_MAXIMO = 1000;
+
     private final PosicionRutaRepository posicionRepository;
     private final RutaRepository rutaRepository;
     private final Clock reloj;
@@ -33,8 +36,8 @@ public class PosicionRutaService {
     }
 
     public List<PosicionRutaResponse> listar(Long rutaId, int limite) {
-        if (limite <= 0) {
-            throw new ReglaDeNegocioException("El limite debe ser mayor a cero");
+        if (limite <= 0 || limite > LIMITE_MAXIMO) {
+            throw new ReglaDeNegocioException("El limite debe estar entre 1 y " + LIMITE_MAXIMO);
         }
         if (rutaId != null && !rutaRepository.existsById(rutaId)) {
             throw rutaInexistente(rutaId);

@@ -2,7 +2,6 @@ package co.edu.usta.spacetrack.operaciones.dto;
 
 import co.edu.usta.spacetrack.operaciones.domain.EstadoOperacion;
 import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -15,7 +14,7 @@ public record OperacionRequest(
         @NotNull(message = "Debe seleccionar un cliente") Long clienteId,
         @NotBlank(message = "El nombre de la operacion es obligatorio") @Size(max = 120) String nombreOperacion,
         @NotNull(message = "La fecha inicial es obligatoria") LocalDate fechaInicio,
-        @NotNull(message = "La fecha final es obligatoria") @FutureOrPresent(message = "La fecha final debe ser actual o futura") LocalDate fechaFin,
+        @NotNull(message = "La fecha final es obligatoria") LocalDate fechaFin,
         @NotBlank(message = "Los dias de operacion son obligatorios") @Size(max = 80) String diasOperacion,
         @NotNull(message = "Indique los vehiculos requeridos") @Positive(message = "Debe requerir al menos un vehiculo") Integer numeroVehiculosRequeridos,
         @NotNull(message = "Indique las entregas esperadas") @Positive(message = "Debe indicar al menos una entrega") Integer numeroEntregasEsperadas,

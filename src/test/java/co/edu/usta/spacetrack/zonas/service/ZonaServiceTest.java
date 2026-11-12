@@ -4,11 +4,13 @@ import co.edu.usta.spacetrack.rutas.repository.RutaRepository;
 import co.edu.usta.spacetrack.shared.exception.ReglaDeNegocioException;
 import co.edu.usta.spacetrack.zonas.domain.Zona;
 import co.edu.usta.spacetrack.zonas.dto.ZonaRequest;
+import co.edu.usta.spacetrack.zonas.dto.ZonaResponse;
 import co.edu.usta.spacetrack.zonas.repository.ZonaRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -40,6 +42,32 @@ class ZonaServiceTest {
                 .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("No se puede eliminar la zona porque tiene rutas asociadas");
         verify(zonaRepository, never()).delete(any());
+    }
+
+    @Test
+    void guardaElNombreOficialDeLaLocalidadDelCatalogo() {
+        when(zonaRepository.save(any(Zona.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        ZonaResponse respuesta = zonaService.crear(new ZonaRequest("Z-SUR", "Zona Sur", "localidad de ciudad bolivar", null, true));
+
+        assertThat(respuesta.localidad()).isEqualTo("Ciudad Bolívar");
+    }
+
+    @Test
+    void rechazaUnaLocalidadQueNoSePuedeUbicarEnElMapa() {
+        assertThatThrownBy(() -> zonaService.crear(new ZonaRequest("Z-X", "Zona X", "Medellin", null, true)))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessageStartingWith("La localidad 'Medellin' no esta en el catalogo. Use una de: Usaquén, Chapinero");
+        verify(zonaRepository, never()).save(any());
+    }
+
+    @Test
+    void ofreceElCatalogoDeLocalidadesConCoordenadas() {
+        assertThat(zonaService.localidades()).hasSize(22)
+                .anySatisfy(l -> {
+                    assertThat(l.nombre()).isEqualTo("Kennedy");
+                    assertThat(l.latitud()).isEqualTo(4.63);
+                });
     }
 
     private ZonaRequest solicitud() {

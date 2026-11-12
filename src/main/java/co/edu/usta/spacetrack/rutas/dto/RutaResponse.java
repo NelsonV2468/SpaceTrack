@@ -12,4 +12,6 @@ public record RutaResponse(Long id, String codigo, String nombre, Long zonaId, S
                            Long vehiculoId, String placaVehiculo, String descripcionVehiculo,
                            Long conductorId, String nombreConductor,
                            EstadoRuta estado, LocalDateTime fechaInicioReal, LocalDateTime fechaFinReal,
-                           LocalDateTime fechaCreacion, LocalDateTime fechaActualizacion) { }
+                           LocalDateTime fechaCreacion, LocalDateTime fechaActualizacion,
+                           // Solo se informa al finalizar una ruta con entregas faltantes; en los demas casos es null.
+                           String advertencia) { }

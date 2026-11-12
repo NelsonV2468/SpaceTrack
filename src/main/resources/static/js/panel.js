@@ -174,11 +174,11 @@ const MODULOS = {
         ],
         campos: [
             { nombre: 'codigoContrato', etiqueta: 'Código de contrato', ayuda: 'Ej.: CT-2026-001' },
-            { nombre: 'clienteId', etiqueta: 'Cliente', tipo: 'relacion', fuente: 'clientes', mostrar: c => c.razonSocial },
+            { nombre: 'clienteId', etiqueta: 'Cliente', tipo: 'relacion', fuente: 'clientes', filtrar: c => c.activo, mostrar: c => c.razonSocial },
             { nombre: 'nombreOperacion', etiqueta: 'Nombre de la operación', ancho: true },
             { nombre: 'fechaInicio', etiqueta: 'Fecha de inicio', tipo: 'date', valor: hoy(0) },
             { nombre: 'fechaFin', etiqueta: 'Fecha de finalización', tipo: 'date', valor: hoy(90) },
-            { nombre: 'diasOperacion', etiqueta: 'Días de operación (resumen)', valor: 'Lunes a sábado' },
+            { nombre: 'diasOperacion', etiqueta: 'Días de operación', valor: 'Lunes a sábado', ayuda: 'Ej.: Lunes a viernes · Lunes, miércoles y viernes · Todos los días' },
             { nombre: 'estado', etiqueta: 'Estado', tipo: 'select', opciones: ['ACTIVA', 'PAUSADA', 'FINALIZADA'] },
             { nombre: 'numeroVehiculosRequeridos', etiqueta: 'Vehículos requeridos', tipo: 'number', valor: 1 },
             { nombre: 'numeroEntregasEsperadas', etiqueta: 'Entregas esperadas', tipo: 'number', valor: 1 },
@@ -219,7 +219,7 @@ const MODULOS = {
         campos: [
             { nombre: 'codigo', etiqueta: 'Código', ayuda: 'Ej.: Z-NORTE' },
             { nombre: 'nombre', etiqueta: 'Nombre' },
-            { nombre: 'localidad', etiqueta: 'Localidad', ayuda: 'Ej.: Usaquén, Kennedy, Suba, Chapinero' },
+            { nombre: 'localidad', etiqueta: 'Localidad', tipo: 'select', opcionesApi: '/api/zonas/localidades', opcion: l => l.nombre, ayuda: 'Solo localidades del catálogo, para poder ubicarlas en el mapa' },
             { nombre: 'descripcion', etiqueta: 'Descripción', opcional: true },
             { nombre: 'activa', etiqueta: 'Zona activa', tipo: 'check', valor: true }
         ]
@@ -241,7 +241,7 @@ const MODULOS = {
             { nombre: 'codigo', etiqueta: 'Código', ayuda: 'Ej.: R-001' },
             { nombre: 'nombre', etiqueta: 'Nombre' },
             { nombre: 'zonaId', etiqueta: 'Zona', tipo: 'relacion', fuente: 'zonas', filtrar: z => z.activa, mostrar: z => z.nombre + ' (' + z.localidad + ')' },
-            { nombre: 'operacionId', etiqueta: 'Operación / contrato', tipo: 'relacion', fuente: 'operaciones', filtrar: o => o.estado !== 'FINALIZADA', mostrar: o => o.codigoContrato + ' — ' + o.razonSocialCliente },
+            { nombre: 'operacionId', etiqueta: 'Operación / contrato', tipo: 'relacion', fuente: 'operaciones', filtrar: o => o.estado === 'ACTIVA', mostrar: o => o.codigoContrato + ' — ' + o.razonSocialCliente },
             { nombre: 'puntoOrigen', etiqueta: 'Punto de origen', valor: 'CEDI Puente Aranda' },
             { nombre: 'puntoDestino', etiqueta: 'Punto de destino' },
             { nombre: 'distanciaEstimadaKm', etiqueta: 'Distancia estimada (km)', tipo: 'number' },
@@ -556,6 +556,11 @@ async function abrirFormulario(clave, item, alGuardar) {
     const m = MODULOS[clave];
     const fuentes = [...new Set(m.campos.filter(c => c.tipo === 'relacion').map(c => c.fuente))];
     await cargarVarios(fuentes);
+    // Catalogos que entrega el servidor, por ejemplo las localidades que se pueden ubicar en el mapa.
+    for (const campo of m.campos.filter(c => c.opcionesApi)) {
+        const lista = await api('GET', campo.opcionesApi).catch(() => []);
+        campo.opciones = lista.map(campo.opcion || (o => o));
+    }
     const formulario = el('form', { class: 'formulario', novalidate: true, onsubmit: e => guardar(e, clave, item, alGuardar) });
     m.campos.forEach(campo => formulario.append(crearCampo(campo, item)));
     formulario.append(el('div', { class: 'acciones-form' }, [
@@ -590,6 +595,8 @@ function crearCampo(campo, item) {
     } else if (campo.tipo === 'select' || campo.tipo === 'relacion') {
         const select = el('select', { id, name: campo.nombre }, el('option', { value: '', texto: 'Seleccione…' }));
         if (campo.tipo === 'select') campo.opciones.forEach(op => select.append(el('option', { value: op, texto: op })));
+        // Un valor guardado antes de existir el catalogo se conserva visible para poder corregirlo.
+        if (campo.tipo === 'select' && valor && !campo.opciones.includes(valor)) select.append(el('option', { value: valor, texto: valor + ' (fuera del catálogo)' }));
         const opciones = campo.tipo === 'relacion' ? (estado.datos[campo.fuente] || []).filter(o => !campo.filtrar || campo.filtrar(o) || (item && o.id === item[campo.nombre])) : [];
         opciones.forEach(o => select.append(el('option', { value: o.id, texto: campo.mostrar(o) })));
         select.value = valor ?? (campo.tipo === 'select' ? campo.opciones[0] : '');
@@ -793,12 +800,13 @@ function recurso(nombreIcono, titulo, principal, secundario) {
 
 async function cambiarEstado(r, accion, pendientes) {
     if (accion === 'finalizar') {
-        const texto = pendientes > 0 ? 'Quedan ' + pendientes + ' entregas sin registrar. ¿Desea finalizar la ruta de todas formas?' : '¿Desea finalizar la ruta ' + r.codigo + '?';
+        const texto = pendientes > 0 ? 'Quedan ' + pendientes + ' entregas sin registrar en la zona ' + r.nombreZona + '. ¿Desea finalizar la ruta de todas formas?' : '¿Desea finalizar la ruta ' + r.codigo + '?';
         if (!confirm(texto)) return;
     }
     try {
-        await api('PATCH', '/api/rutas/' + r.id + '/' + accion);
-        estado.mensaje = { tipo: 'exito', texto: accion === 'iniciar' ? 'La ruta se inició. Ya puede registrar entregas.' : 'La ruta se finalizó correctamente.' };
+        const respuesta = await api('PATCH', '/api/rutas/' + r.id + '/' + accion);
+        if (respuesta && respuesta.advertencia) estado.mensaje = { tipo: 'warn', texto: respuesta.advertencia };
+        else estado.mensaje = { tipo: 'exito', texto: accion === 'iniciar' ? 'La ruta se inició. Ya puede registrar entregas.' : 'La ruta se finalizó correctamente.' };
     } catch (error) {
         estado.mensaje = { tipo: 'error', texto: error.message };
     }

@@ -1,5 +1,6 @@
 package co.edu.usta.spacetrack.zonas.controller;
 
+import co.edu.usta.spacetrack.zonas.dto.LocalidadResponse;
 import co.edu.usta.spacetrack.zonas.dto.ZonaRequest;
 import co.edu.usta.spacetrack.zonas.dto.ZonaResponse;
 import co.edu.usta.spacetrack.zonas.service.ZonaService;
@@ -23,6 +24,7 @@ public class ZonaRestController {
     private final ZonaService zonaService;
     public ZonaRestController(ZonaService zonaService) { this.zonaService = zonaService; }
     @GetMapping public List<ZonaResponse> listar() { return zonaService.listar(); }
+    @GetMapping("/localidades") public List<LocalidadResponse> localidades() { return zonaService.localidades(); }
     @GetMapping("/{id}") public ZonaResponse obtener(@PathVariable Long id) { return zonaService.obtenerPorId(id); }
     @PostMapping public ResponseEntity<ZonaResponse> crear(@Valid @RequestBody ZonaRequest solicitud) { return ResponseEntity.status(HttpStatus.CREATED).body(zonaService.crear(solicitud)); }
     @PutMapping("/{id}") public ZonaResponse actualizar(@PathVariable Long id, @Valid @RequestBody ZonaRequest solicitud) { return zonaService.actualizar(id, solicitud); }
