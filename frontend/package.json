@@ -1,0 +1,23 @@
+{
+  "name": "spacetrack-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend de SpaceTrack (Next.js). Se exporta como sitio estatico y lo sirve Spring Boot.",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build && node scripts/publicar.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@neon/auth": "^0.8.2",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^5.7.0"
+  }
+}

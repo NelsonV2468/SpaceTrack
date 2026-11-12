@@ -22,7 +22,7 @@ final class RespuestasSeguridad {
             if (esPeticionDeDatos(request)) {
                 escribir(response, HttpServletResponse.SC_UNAUTHORIZED, "Su sesion no es valida o expiro. Inicie sesion de nuevo");
             } else {
-                response.sendRedirect(request.getContextPath() + "/login.html");
+                response.sendRedirect(request.getContextPath() + "/login/");
             }
         };
     }

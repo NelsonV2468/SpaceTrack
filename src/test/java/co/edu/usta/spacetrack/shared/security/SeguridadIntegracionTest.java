@@ -18,7 +18,9 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -26,6 +28,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -77,14 +80,39 @@ class SeguridadIntegracionTest {
 
     @Test
     void lasPaginasProtegidasRedirigenAlLogin() throws Exception {
-        mvc.perform(get("/panel.html")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login.html"));
-        mvc.perform(get("/clientes")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login.html"));
+        mvc.perform(get("/panel/")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login/"));
+        mvc.perform(get("/panel/clientes/")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login/"));
+        mvc.perform(get("/panel.html")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login/"));
+        mvc.perform(get("/clientes")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login/"));
         mvc.perform(get("/h2-console")).andExpect(status().is3xxRedirection());
     }
 
     @Test
+    void lasRutasSinBarraFinalYLasAntiguasLlevanAlFrontendNuevo() throws Exception {
+        mvc.perform(get("/login")).andExpect(redirectedUrl("/login/"));
+        mvc.perform(get("/registro")).andExpect(redirectedUrl("/registro/"));
+        mvc.perform(get("/login.html")).andExpect(redirectedUrl("/login/"));
+        mvc.perform(get("/panel/rutas/detalle").queryParam("id", "7").with(como(Rol.CONSULTA)))
+                .andExpect(redirectedUrl("/panel/rutas/detalle/?id=7"));
+        mvc.perform(get("/").with(como(Rol.CONSULTA))).andExpect(redirectedUrl("/panel/"));
+    }
+
+    @Test
+    void laCspNoPermiteScriptsEnLineaArbitrarios() throws Exception {
+        mvc.perform(get("/auth/config"))
+                .andExpect(header().string("Content-Security-Policy", not(containsString("'unsafe-inline' ;"))))
+                .andExpect(header().string("Content-Security-Policy", not(containsString("script-src 'self' 'unsafe-inline'"))))
+                .andExpect(header().string("Content-Security-Policy", containsString("object-src 'none'")));
+    }
+
+    @Test
     void elLoginYLaSaludSonPublicosSinDetallesInternos() throws Exception {
-        mvc.perform(get("/login.html")).andExpect(status().isOk());
+        // El HTML de /login/ existe solo si se compilo el frontend; en cualquier caso nunca exige sesion.
+        mvc.perform(get("/login/")).andExpect(status().is(anyOf(is(200), is(404))));
+        // El prefetch de Next usa HEAD: nunca debe redirigir (antes generaba un bucle de redirecciones).
+        mvc.perform(head("/login/")).andExpect(status().is(anyOf(is(200), is(404))));
+        mvc.perform(head("/registro/")).andExpect(status().is(anyOf(is(200), is(404))));
+        mvc.perform(get("/_next/static/no-existe.js")).andExpect(status().is(404));
         mvc.perform(get("/auth/config"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.seguridad").value(true))

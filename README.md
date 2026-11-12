@@ -6,6 +6,7 @@ Modulo de Gestion de SpaceTrack para CITY URBAN BOGOTA. Centraliza empresas cont
 
 - Java 21
 - Spring Boot 3.4.4
+- Frontend en Next.js 16 + React 19 + TypeScript (carpeta `frontend/`), exportado como sitio estatico y servido por Spring
 - Spring MVC, Thymeleaf y API REST
 - Spring Data JPA
 - H2 en archivo local para desarrollo
@@ -41,8 +42,30 @@ La interfaz web y la API usan el mismo servicio, con lo cual las reglas de NIT y
 1. Abre la carpeta `SpaceTrack` como proyecto Maven.
 2. Configura el SDK del proyecto como Java 21.
 3. Espera la descarga de dependencias de Maven.
-4. Ejecuta `SpaceTrackApplication`.
-5. Abre `http://localhost:8080` (redirige al panel `panel.html`).
+4. Compila el frontend una vez (necesita Node.js 20 o superior):
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   ```
+   El build exporta el sitio y lo copia a `src/main/resources/webapp` (ignorado por git).
+5. Ejecuta `SpaceTrackApplication` y abre `http://localhost:8080` (redirige a `/panel/`).
+
+## Frontend (Next.js)
+
+```
+frontend/src/
+  app/(acceso)/login, registro   Paginas separadas de inicio de sesion y creacion de cuenta
+  app/panel/...                  Tablero, monitoreo, modulos, detalle de ruta, entregas, usuarios
+  modulos/config.tsx             Columnas y campos de cada modulo CRUD (agregar uno nuevo = declararlo aqui)
+  components/                    Formulario generico, modal, mapa SVG de Bogota, avisos, UI
+  lib/                           Cliente del API (sesion + CSRF), Neon Auth, tipos y formatos
+```
+
+- **Desarrollo con recarga en caliente**: con el backend corriendo en `:8080` (perfil `dev`), ejecuta `npm run dev` en `frontend/` y abre `http://localhost:3000`. Next reenvia `/api` y `/auth` al backend.
+- **Produccion**: el `Dockerfile` compila el frontend y lo empaqueta en el mismo `.jar`; todo queda en un solo servicio y dominio (la cookie de sesion y el CSRF funcionan sin CORS).
+- **Seguridad**: la CSP no permite `'unsafe-inline'`; el build calcula los hashes SHA-256 de los scripts en linea de Next (`csp-hashes.txt`) y Spring autoriza solo esos.
+- `npm run typecheck` valida los tipos de TypeScript.
 
 La consola H2 queda disponible en `http://localhost:8080/h2-console`. Usa la URL JDBC `jdbc:h2:file:./data/spacetrack`, usuario `sa` y contrasena vacia.
 
@@ -73,7 +96,7 @@ Las pantallas de gestion estan disponibles en `/clientes`, `/vehiculos`, `/condu
 
 ## Panel de operacion
 
-`/panel.html` es la interfaz principal: tablero de control, monitoreo en mapa, gestion, planeacion y registro de entregas.
+`/panel/` es la interfaz principal (responsive): tablero de control, monitoreo en mapa, gestion, planeacion, registro de entregas y, para administradores, usuarios y roles. El acceso se hace en `/login/` y las cuentas nuevas se crean en `/registro/`. Las direcciones antiguas `/panel.html` y `/login.html` redirigen a las nuevas.
 
 - **Necesidades del cliente**: vehiculos, capacidad, cadena de frio, dias y horario por contrato.
 - **Asignacion**: cada ruta recibe un vehiculo y un conductor. Se valida que el vehiculo este activo y tenga cadena de frio si el contrato la exige, que el conductor este activo con licencia vigente y que ninguno este en otra ruta en curso. Una ruta no se puede iniciar sin ambos.

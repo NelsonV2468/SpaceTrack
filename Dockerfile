@@ -1,16 +1,19 @@
+# 1) Frontend Next.js: se exporta como sitio estatico y queda en src/main/resources/webapp.
 FROM node:24-bookworm-slim AS frontend
-WORKDIR /workspace
-COPY package.json package-lock.json ./
+ENV NEXT_TELEMETRY_DISABLED=1
+WORKDIR /workspace/frontend
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --ignore-scripts
-COPY frontend ./frontend
-RUN mkdir -p src/main/resources/static/js && npm run build
+COPY frontend ./
+RUN npm run build
 
+# 2) Backend Spring Boot: empaqueta el API junto con el frontend exportado.
 FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 COPY pom.xml ./
 RUN mvn -q -B -DskipTests dependency:go-offline
 COPY src ./src
-COPY --from=frontend /workspace/src/main/resources/static/js/login.bundle.js src/main/resources/static/js/login.bundle.js
+COPY --from=frontend /workspace/src/main/resources/webapp src/main/resources/webapp
 # Las pruebas corren en CI/local; aqui se compila el artefacto final.
 RUN mvn -q -B -DskipTests package
 
