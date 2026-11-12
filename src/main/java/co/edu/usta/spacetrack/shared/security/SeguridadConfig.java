@@ -18,7 +18,12 @@ import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
+import org.springframework.core.io.ClassPathResource;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -32,6 +37,8 @@ import java.util.Set;
 public class SeguridadConfig {
 
     private static final String[] TODOS_LOS_ROLES = {"ADMIN", "OPERADOR", "CONSULTA"};
+    private static final String[] PAGINAS_PUBLICAS = {"/login", "/login/**", "/registro", "/registro/**", "/login.html",
+            "/_next/**", "/icon.svg", "/favicon.ico", "/404/**", "/css/**"};
 
     @Bean
     SecurityContextRepository securityContextRepository() {
@@ -76,7 +83,11 @@ public class SeguridadConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/login.html", "/js/login.bundle.js", "/css/**", "/favicon.ico", "/error").permitAll()
+                        // Frontend Next.js: login, registro y sus recursos son publicos; el panel exige sesion.
+                        // HEAD lo usa el prefetch de Next.js; se trata igual que GET.
+                        .requestMatchers(HttpMethod.GET, PAGINAS_PUBLICAS).permitAll()
+                        .requestMatchers(HttpMethod.HEAD, PAGINAS_PUBLICAS).permitAll()
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/config").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/session").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
@@ -85,6 +96,7 @@ public class SeguridadConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/*/*/eliminar").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/**").hasAnyRole(TODOS_LOS_ROLES)
+                        .requestMatchers(HttpMethod.HEAD, "/**").hasAnyRole(TODOS_LOS_ROLES)
                         .anyRequest().hasAnyRole("ADMIN", "OPERADOR"))
                 .logout(l -> l.logoutUrl("/auth/logout")
                         .logoutSuccessHandler((req, res, auth) -> res.setStatus(204))
@@ -95,10 +107,25 @@ public class SeguridadConfig {
                 .headers(h -> h
                         .referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.SAME_ORIGIN))
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
-                                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                                "default-src 'self'; script-src 'self'" + hashesScriptsFrontend() + "; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
                                         + "connect-src 'self' " + authOrigen + "; frame-src " + authOrigen + "; "
                                         + "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'")))
                 .build();
+    }
+
+    /**
+     * Hashes SHA-256 de los scripts en linea que genera Next.js (los calcula frontend/scripts/publicar.mjs).
+     * Asi se autorizan solo esos scripts exactos, sin habilitar 'unsafe-inline'.
+     */
+    static String hashesScriptsFrontend() {
+        ClassPathResource archivo = new ClassPathResource("webapp/csp-hashes.txt");
+        if (!archivo.exists()) return "";
+        try {
+            String hashes = archivo.getContentAsString(StandardCharsets.UTF_8).trim();
+            return hashes.matches("('sha256-[A-Za-z0-9+/=]+'\\s*)*") && !hashes.isEmpty() ? " " + hashes : "";
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo leer webapp/csp-hashes.txt", e);
+        }
     }
 
     static String origen(String url) {
