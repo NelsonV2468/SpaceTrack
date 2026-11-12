@@ -20,5 +20,7 @@ RUN useradd --system --uid 10001 spacetrack
 COPY --from=build /workspace/target/*.jar app.jar
 USER spacetrack
 EXPOSE 10000
+# Los servidores de Render usan UTC; la operacion es en Bogota y las fechas se guardan como hora local.
+ENV TZ=America/Bogota
 # El plan gratuito de Render tiene 512 MB: se limita el heap y se reduce el arranque.
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=65", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", "-Xss512k", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-Duser.timezone=America/Bogota", "-XX:MaxRAMPercentage=65", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", "-Xss512k", "-jar", "/app/app.jar"]
