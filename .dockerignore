@@ -1,0 +1,10 @@
+.git
+.idea
+.mvn
+.neon
+.env
+.env.local
+data
+target
+node_modules
+npm-debug.log
