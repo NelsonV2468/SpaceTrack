@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState, type FormEvent } from "react";
+import { AvisoAlerta, REFRESCO_ALERTAS_MS } from "@/components/AlertasRutas";
 import { useAvisos } from "@/components/Avisos";
 import { Formulario } from "@/components/Formulario";
 import { Icono, type NombreIcono } from "@/components/Icono";
@@ -14,7 +15,7 @@ import { ESTADOS_RUTA, INICIAL_DIA, REFRESCO_MAPA_MS, fechaHora, hora, licenciaV
 import { useRecurso } from "@/lib/hooks";
 import { mensajeSinUbicacion } from "@/lib/mapa";
 import { useSesion } from "@/lib/sesion";
-import type { Conductor, Entrega, Necesidad, Operacion, Ruta, Ubicacion, Vehiculo, Zona } from "@/lib/tipos";
+import type { AlertaRuta, Conductor, Entrega, Necesidad, Operacion, Ruta, Ubicacion, Vehiculo, Zona } from "@/lib/tipos";
 import { CAMPOS_RUTA } from "@/modulos/config";
 import { RegistroEntrega, TablaEntregas } from "@/modulos/entregas";
 
@@ -30,6 +31,8 @@ function DetalleRuta() {
   const ruta = useRecurso<Ruta>(id ? `/api/rutas/${id}` : null);
   const entregas = useRecurso<Entrega[]>(id ? `/api/entregas?rutaId=${id}` : null);
   const enCurso = ruta.datos?.estado === "EN_CURSO";
+  // ON-4: la API responde 204 (null) cuando la ruta no tiene alerta.
+  const alerta = useRecurso<AlertaRuta | null>(id && enCurso ? `/api/alertas/rutas/${id}` : null, REFRESCO_ALERTAS_MS);
   const ubicacion = useRecurso<Ubicacion>(id && ruta.datos ? `/api/rutas/${id}/ubicacion` : null, enCurso ? REFRESCO_MAPA_MS : undefined);
   const [modal, setModal] = useState<"editar" | "asignar" | "entrega" | null>(null);
   const [fuentesEdicion, setFuentesEdicion] = useState<Record<string, never[]>>({});
@@ -40,7 +43,7 @@ function DetalleRuta() {
   if (!ruta.datos) return ruta.error ? <Vacio titulo="No se pudo cargar la ruta" texto={ruta.error} /> : <Cargando />;
 
   const r = ruta.datos;
-  const recargar = async () => { await Promise.all([ruta.recargar(), entregas.recargar(), ubicacion.recargar()]); };
+  const recargar = async () => { await Promise.all([ruta.recargar(), entregas.recargar(), ubicacion.recargar(), alerta.recargar()]); };
   const p = r.numeroEntregasProgramadas;
   const pendientes = p - r.entregasRealizadas - r.entregasNoRealizadas;
   const sinRecursos = !r.placaVehiculo || !r.conductorId;
@@ -105,6 +108,8 @@ function DetalleRuta() {
             <button className="boton exito" onClick={() => cambiarEstado("finalizar")}>Finalizar ruta</button>
           </> : null}
         </>} />
+
+      {enCurso && alerta.datos ? <AvisoAlerta alerta={alerta.datos} /> : null}
 
       {r.estado === "PENDIENTE" && sinRecursos ? (
         <div className="aviso warn">La ruta no tiene vehículo y conductor asignados. Asígnelos para poder iniciarla.</div>

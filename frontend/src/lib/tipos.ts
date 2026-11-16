@@ -167,3 +167,27 @@ export interface Ubicacion {
   entregasProgramadas: number;
   calculadoEn: string;
 }
+
+/** ON-4: ruta EN_CURSO proxima a terminar su franja horaria sin completar entregas. */
+export type NivelAlerta = "ADVERTENCIA" | "CRITICA";
+
+export interface AlertaRuta {
+  rutaId: number;
+  codigoRuta: string;
+  nombreRuta: string;
+  nombreZona: string | null;
+  localidad: string | null;
+  codigoContrato: string | null;
+  placaVehiculo: string | null;
+  nombreConductor: string | null;
+  nivel: NivelAlerta;
+  entregasProgramadas: number;
+  entregasPendientes: number;
+  /** Null cuando la ruta sigue abierta desde un dia anterior. */
+  horaFinFranja: string | null;
+  /** Negativo cuando la franja ya termino. */
+  minutosRestantes: number;
+  minutosEstimadosPendientes: number;
+  mensaje: string;
+  calculadoEn: string;
+}
