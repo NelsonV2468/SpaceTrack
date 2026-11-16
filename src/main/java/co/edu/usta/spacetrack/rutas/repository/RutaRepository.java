@@ -19,6 +19,11 @@ public interface RutaRepository extends JpaRepository<Ruta, Long> {
     boolean existsByVehiculoIdAndEstadoAndIdNot(Long vehiculoId, EstadoRuta estado, Long id);
     boolean existsByConductorIdAndEstadoAndIdNot(Long conductorId, EstadoRuta estado, Long id);
 
+    boolean existsByOperacionIdAndEstado(Long operacionId, EstadoRuta estado);
+
     @Query("select coalesce(sum(r.numeroEntregasProgramadas), 0) from Ruta r where r.operacion.id = :operacionId")
     long sumarEntregasProgramadasPorOperacion(@Param("operacionId") Long operacionId);
+
+    @Query("select coalesce(sum(r.numeroEntregasProgramadas), 0) from Ruta r where r.operacion.id = :operacionId and r.id <> :rutaId")
+    long sumarEntregasProgramadasPorOperacionExcluyendo(@Param("operacionId") Long operacionId, @Param("rutaId") Long rutaId);
 }

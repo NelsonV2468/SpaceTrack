@@ -126,6 +126,8 @@ export interface Ruta {
   fechaFinReal: string | null;
   fechaCreacion: string;
   fechaActualizacion: string;
+  /** Solo llega al finalizar una ruta con entregas faltantes: indica la zona y cuantas entregas faltaron. */
+  advertencia?: string | null;
 }
 
 export interface Entrega {

@@ -39,8 +39,13 @@ export function ModuloCrud({ clave }: { clave: string }) {
 
   async function abrirFormulario(item: Registro | null) {
     const necesarias = [...new Set(m.campos.filter((c) => c.tipo === "relacion").map((c) => c.fuente!))];
-    const cargadas = await Promise.all(necesarias.map((f) => apiGet<Registro[]>(MODULOS[f].api).catch(() => [])));
-    setFuentes(Object.fromEntries(necesarias.map((f, i) => [f, cargadas[i]])));
+    // Catalogos del servidor para listas desplegables (p. ej. localidades); se guardan con su URL como clave.
+    const catalogos = [...new Set(m.campos.filter((c) => c.opcionesApi).map((c) => c.opcionesApi!))];
+    const cargadas = await Promise.all([
+      ...necesarias.map((f) => apiGet<Registro[]>(MODULOS[f].api).catch(() => [])),
+      ...catalogos.map((url) => apiGet<Registro[]>(url).catch(() => [])),
+    ]);
+    setFuentes(Object.fromEntries([...necesarias, ...catalogos].map((f, i) => [f, cargadas[i]])));
     setEdicion({ item });
   }
 

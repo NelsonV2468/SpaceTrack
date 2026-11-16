@@ -47,12 +47,15 @@ function DetalleRuta() {
 
   async function cambiarEstado(accion: "iniciar" | "finalizar") {
     if (accion === "finalizar") {
-      const texto = pendientes > 0 ? `Quedan ${pendientes} entregas sin registrar. ¿Desea finalizar la ruta de todas formas?` : `¿Desea finalizar la ruta ${r.codigo}?`;
+      const texto = pendientes > 0
+        ? `Quedan ${pendientes} entregas sin registrar en la zona ${r.nombreZona}. ¿Desea finalizar la ruta de todas formas?`
+        : `¿Desea finalizar la ruta ${r.codigo}?`;
       if (!confirm(texto)) return;
     }
     try {
-      await api("PATCH", `/api/rutas/${r.id}/${accion}`);
-      avisar("exito", accion === "iniciar" ? "La ruta se inició. Ya puede registrar entregas." : "La ruta se finalizó correctamente.");
+      const respuesta = await api<Ruta>("PATCH", `/api/rutas/${r.id}/${accion}`);
+      if (respuesta?.advertencia) avisar("warn", respuesta.advertencia);
+      else avisar("exito", accion === "iniciar" ? "La ruta se inició. Ya puede registrar entregas." : "La ruta se finalizó correctamente.");
     } catch (e) {
       avisar("error", (e as Error).message);
     }

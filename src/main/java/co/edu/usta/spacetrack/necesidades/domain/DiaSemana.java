@@ -7,5 +7,10 @@ public enum DiaSemana {
     JUEVES,
     VIERNES,
     SABADO,
-    DOMINGO
+    DOMINGO;
+
+    // El orden del enum coincide con DayOfWeek (lunes = 1 ... domingo = 7).
+    public static DiaSemana desde(java.time.DayOfWeek dia) {
+        return values()[dia.getValue() - 1];
+    }
 }

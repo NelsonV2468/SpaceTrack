@@ -12,6 +12,9 @@ export interface CampoDef {
   tipo?: "text" | "email" | "number" | "date" | "time" | "check" | "select" | "relacion" | "dias" | "textarea";
   /** Para "select": valores, o pares [valor, texto]. */
   opciones?: (string | [string, string])[];
+  /** Para "select": catalogo que entrega el servidor (p. ej. localidades) y el texto de cada elemento. */
+  opcionesApi?: string;
+  opcion?: (registro: Registro) => string;
   /** Para "relacion": lista de registros disponibles y como mostrarlos. */
   fuente?: string;
   mostrar?: (registro: Registro) => string;
@@ -91,7 +94,7 @@ export function Formulario({ campos, inicial, fuentes = {}, textoEnviar, alias =
       {antes}
       {campos.map((campo) => (
         <Campo key={campo.nombre} campo={campo} valor={valorInicial(campo, inicial)} item={inicial}
-          opcionesRelacion={campo.fuente ? fuentes[campo.fuente] : undefined} error={errores[campo.nombre]} />
+          opcionesRelacion={fuentes[campo.fuente ?? campo.opcionesApi ?? ""]} error={errores[campo.nombre]} />
       ))}
       <div className="acciones-form">
         <button type="button" className="boton secundario" onClick={alCancelar}>Cancelar</button>
@@ -127,7 +130,11 @@ function Campo({ campo, valor, item, opcionesRelacion, error }: {
       </div>
     );
   } else if (campo.tipo === "select") {
-    const opciones = (campo.opciones ?? []).map((o) => (Array.isArray(o) ? o : [o, o]));
+    const opciones = campo.opcionesApi
+      ? (opcionesRelacion ?? []).map((o) => { const texto = campo.opcion ? campo.opcion(o) : String(o); return [texto, texto]; })
+      : (campo.opciones ?? []).map((o) => (Array.isArray(o) ? o : [o, o]));
+    // Un valor guardado antes de existir el catalogo se conserva visible para poder corregirlo.
+    if (valor && !opciones.some(([v]) => v === valor)) opciones.push([String(valor), `${String(valor)} (fuera del catálogo)`]);
     control = (
       <select id={id} name={campo.nombre} defaultValue={String(valor ?? opciones[0]?.[0] ?? "")}>
         {opciones.map(([v, t]) => <option key={v} value={v}>{t}</option>)}

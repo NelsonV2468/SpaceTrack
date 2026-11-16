@@ -1,9 +1,11 @@
 package co.edu.usta.spacetrack.necesidades.service;
 
+import co.edu.usta.spacetrack.necesidades.domain.DiaSemana;
 import co.edu.usta.spacetrack.necesidades.domain.NecesidadCliente;
 import co.edu.usta.spacetrack.necesidades.dto.NecesidadClienteRequest;
 import co.edu.usta.spacetrack.necesidades.dto.NecesidadClienteResponse;
 import co.edu.usta.spacetrack.necesidades.repository.NecesidadClienteRepository;
+import co.edu.usta.spacetrack.operaciones.domain.DiasOperacion;
 import co.edu.usta.spacetrack.operaciones.domain.EstadoOperacion;
 import co.edu.usta.spacetrack.operaciones.domain.Operacion;
 import co.edu.usta.spacetrack.operaciones.repository.OperacionRepository;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Transactional(readOnly = true)
@@ -44,6 +47,7 @@ public class NecesidadClienteService {
     public NecesidadClienteResponse crear(NecesidadClienteRequest solicitud) {
         Operacion operacion = buscarOperacionVigente(solicitud.operacionId());
         validarCupoDeVehiculos(operacion, solicitud.cantidadVehiculos(), null);
+        validarDiasDentroDelContrato(operacion, solicitud.diasOperacion());
         NecesidadCliente necesidad = new NecesidadCliente();
         copiarDatos(solicitud, operacion, necesidad);
         return aResponse(necesidadRepository.save(necesidad));
@@ -54,6 +58,7 @@ public class NecesidadClienteService {
         NecesidadCliente necesidad = buscarEntidad(id);
         Operacion operacion = buscarOperacionVigente(solicitud.operacionId());
         validarCupoDeVehiculos(operacion, solicitud.cantidadVehiculos(), id);
+        validarDiasDentroDelContrato(operacion, solicitud.diasOperacion());
         copiarDatos(solicitud, operacion, necesidad);
         return aResponse(necesidadRepository.save(necesidad));
     }
@@ -84,6 +89,18 @@ public class NecesidadClienteService {
         if (yaRegistrados + cantidadSolicitada > operacion.getNumeroVehiculosRequeridos()) {
             throw new ReglaDeNegocioException("La operacion solo admite " + operacion.getNumeroVehiculosRequeridos()
                     + " vehiculos y ya tiene " + yaRegistrados + " registrados en sus necesidades");
+        }
+    }
+
+    // La necesidad detalla el horario del contrato; no puede operar en dias que el contrato no cubre.
+    private void validarDiasDentroDelContrato(Operacion operacion, Set<DiaSemana> dias) {
+        Set<DiaSemana> diasContrato = DiasOperacion.interpretar(operacion.getDiasOperacion())
+                .orElseThrow(() -> new ReglaDeNegocioException("Corrija primero los dias de operacion del contrato "
+                        + operacion.getCodigoContrato() + "; escriba por ejemplo " + DiasOperacion.EJEMPLOS));
+        List<DiaSemana> fuera = dias.stream().filter(d -> !diasContrato.contains(d)).sorted().toList();
+        if (!fuera.isEmpty()) {
+            throw new ReglaDeNegocioException("El contrato opera " + operacion.getDiasOperacion()
+                    + "; no incluye " + String.join(", ", fuera.stream().map(Enum::name).toList()));
         }
     }
 

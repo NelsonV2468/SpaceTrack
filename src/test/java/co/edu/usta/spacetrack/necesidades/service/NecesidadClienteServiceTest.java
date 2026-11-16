@@ -63,11 +63,24 @@ class NecesidadClienteServiceTest {
         assertThat(respuesta.diasOperacion()).containsExactly(DiaSemana.LUNES, DiaSemana.MIERCOLES, DiaSemana.VIERNES);
     }
 
+    @Test
+    void rechazaDiasQueElContratoNoCubre() {
+        when(operacionRepository.findById(1L)).thenReturn(Optional.of(operacion(EstadoOperacion.ACTIVA, 3)));
+        NecesidadClienteRequest conSabado = new NecesidadClienteRequest(1L, "Camion", 1, 3000.0, true,
+                Set.of(DiaSemana.LUNES, DiaSemana.SABADO), LocalTime.of(6, 0), LocalTime.of(14, 0), null);
+
+        assertThatThrownBy(() -> necesidadService.crear(conSabado))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("El contrato opera Lunes a viernes; no incluye SABADO");
+    }
+
     private Operacion operacion(EstadoOperacion estado, int vehiculosRequeridos) {
         Operacion operacion = new Operacion();
         operacion.setCliente(new Cliente());
         operacion.setEstado(estado);
         operacion.setNumeroVehiculosRequeridos(vehiculosRequeridos);
+        operacion.setCodigoContrato("CT-001");
+        operacion.setDiasOperacion("Lunes a viernes");
         return operacion;
     }
 
