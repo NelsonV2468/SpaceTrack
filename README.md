@@ -109,6 +109,13 @@ En el perfil `dev` (por defecto) la consola H2 queda disponible en `http://local
 - Solo en rutas EN_CURSO y sin superar las programadas. Las no entregadas exigen una novedad.
 - Solo se corrigen (eliminan) entregas de rutas EN_CURSO.
 
+### Alertas de rutas proximas a finalizar (ON-4)
+- Se evaluan las rutas EN_CURSO que tienen entregas pendientes. El fin de la ruta es el cierre de la franja horaria de hoy definida por las necesidades del contrato (la mas tardia entre las que ya empezaron).
+- **Advertencia**: faltan `spacetrack.alertas.minutos-aviso` minutos o menos (60 por defecto) para el cierre de la franja.
+- **Critica**: el tiempo restante no alcanza para las entregas pendientes (estimadas en `spacetrack.alertas.minutos-por-entrega` minutos cada una, 10 por defecto), la franja ya termino, o la ruta sigue abierta desde un dia anterior.
+- Si el contrato no tiene necesidades que operen hoy, no hay franja y no se genera alerta.
+- El tablero del panel muestra las alertas vigentes (criticas primero) y el detalle de la ruta muestra la suya; ambos se actualizan cada 30 segundos.
+
 ### Posiciones
 - Se genera una posicion simulada de cada ruta EN_CURSO cada `spacetrack.simulacion.intervalo-segundos` (10 por defecto).
 - Se aceptan posiciones manuales por API solo para rutas existentes y EN_CURSO.
@@ -144,6 +151,8 @@ Con el login activo (perfil `prod`): todos los roles pueden consultar (GET); ADM
 | GET | `/api/rutas/{id}/ubicacion`, `/api/rutas/ubicaciones` | Ubicacion simulada del vehiculo |
 | GET, POST | `/api/entregas` (`?rutaId=`) | Lista o registra entregas |
 | DELETE | `/api/entregas/{id}` | Corrige (elimina) una entrega |
+| GET | `/api/alertas/rutas` | Alertas vigentes de rutas proximas a finalizar sin completar entregas |
+| GET | `/api/alertas/rutas/{rutaId}` | Alerta de una ruta (204 si no tiene) |
 | GET | `/api/posiciones` (`?rutaId=&limite=`) | Posiciones guardadas, las mas recientes primero |
 | GET | `/api/usuarios` | Lista usuarios (solo ADMIN) |
 | PATCH | `/api/usuarios/{id}/rol` | Cambia el rol de un usuario (solo ADMIN) |
@@ -172,6 +181,8 @@ Ejemplo para crear un cliente:
 | `spacetrack.simulacion.intervalo-segundos` | `10` | Frecuencia del generador de posiciones simuladas |
 | `spacetrack.posiciones.retencion-dias` | `30` | Dias que se conservan las posiciones |
 | `spacetrack.posiciones.purga-cron` | `0 30 2 * * *` | Hora de la purga diaria (hora de Bogota) |
+| `spacetrack.alertas.minutos-aviso` | `60` | Minutos antes del cierre de la franja en que se advierte |
+| `spacetrack.alertas.minutos-por-entrega` | `10` | Minutos estimados por entrega pendiente para decidir si una alerta es critica |
 
 ## Requisitos no funcionales
 

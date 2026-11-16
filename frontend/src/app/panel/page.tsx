@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlertasRutas } from "@/components/AlertasRutas";
 import { Icono } from "@/components/Icono";
 import { BarraEntregas, Cargando, Doble, Encabezado, Etiqueta, EstadoRutaEtiqueta, Kpi, Leyenda, Panel, Vacio } from "@/components/ui";
 import { licenciaVigente, miles, porcentaje } from "@/lib/formato";
@@ -49,6 +50,8 @@ export default function Tablero() {
         <Kpi titulo="Flota activa" valor={listaVehiculos.filter((v) => v.activo).length} nota={`de ${listaVehiculos.length} vehículos`} acento="#16355a" />
         <Kpi titulo="Conductores habilitados" valor={habilitados} nota={`de ${listaConductores.length} registrados`} acento="#16355a" />
       </section>
+
+      <AlertasRutas />
 
       {sinFlota ? (
         <div className="aviso warn">
