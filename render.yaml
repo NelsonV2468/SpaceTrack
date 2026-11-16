@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: spacetrack-cityurban
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # Render define PORT (10000); Spring lo lee con server.port=${PORT:8080}.
+      # Secretos: se cargan a mano en el Dashboard (sync: false) y nunca se versionan.
+      - key: DATABASE_URL
+        sync: false
+      - key: NEON_AUTH_BASE_URL
+        sync: false
+      - key: NEON_AUTH_JWKS_URL
+        sync: false
+      # Correos (separados por coma) que siempre reciben el rol ADMIN.
+      - key: SPACETRACK_ADMIN_EMAIL
+        sync: false
+      - key: DB_POOL_MAX_SIZE
+        value: "5"
+      - key: DB_POOL_MIN_IDLE
+        value: "1"

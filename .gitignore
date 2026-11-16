@@ -7,3 +7,14 @@ data/
 .mvn/
 mvnw
 mvnw.cmd
+.neon
+node_modules/
+.env
+.env.*
+!.env.example
+# Frontend Next.js: artefactos de build. "npm run build" en frontend/ publica el sitio en webapp/.
+frontend/.next/
+frontend/out/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+src/main/resources/webapp/

@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "description": "Solo para la configuracion de Neon (neon.ts). El frontend vive en frontend/.",
+  "dependencies": {
+    "@neon/config": "^1.14.0",
+    "@neon/env": "^2.1.3"
+  }
+}

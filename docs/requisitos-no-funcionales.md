@@ -32,17 +32,17 @@
 | Posiciones de rutas (`posiciones_ruta`) | 30 dias, purga diaria configurable | ✅ |
 | Rutas y entregas | Se conservan como historial; las rutas EN_CURSO o FINALIZADAS no se eliminan | ✅ |
 | Datos personales de conductores y contactos | Mientras exista la relacion contractual mas el plazo legal que defina el area juridica | ⛔ |
-| Copias de seguridad de la base | Diaria, 30 dias | ⛔ H2 en archivo local, sin respaldo automatico |
+| Copias de seguridad de la base | Diaria, 30 dias | 🟡 En `prod` la base es PostgreSQL en Neon (respaldos segun el plan contratado); en `dev`, H2 local sin respaldo |
 
 ## RNF-04 Seguridad, roles y acceso
 
 | Requisito | Estado |
 |---|---|
-| Autenticacion de usuarios (Spring Security) | ⛔ Hoy la aplicacion no exige credenciales |
-| Roles: `ADMIN` (gestion completa), `OPERADOR` (rutas y entregas), `CONSULTA` (solo lectura) | ⛔ |
-| Proteccion CSRF en formularios con sesion | ⛔ |
-| Consola H2 deshabilitada fuera del perfil de desarrollo | ⛔ Hoy siempre habilitada |
-| HTTPS en ambientes compartidos | ⛔ |
+| Autenticacion de usuarios (Spring Security + Neon Auth) | ✅ Exigida en el perfil `prod`; apagada en `dev` |
+| Roles: `ADMIN` (todo, incluido eliminar y gestionar usuarios), `OPERADOR` (consulta, crea y actualiza), `CONSULTA` (solo lectura); las cuentas nuevas quedan `PENDIENTE` hasta aprobacion | ✅ |
+| Proteccion CSRF en formularios con sesion | ✅ Cookie `XSRF-TOKEN` con SameSite=Strict |
+| Consola H2 deshabilitada fuera del perfil de desarrollo | ✅ |
+| HTTPS en ambientes compartidos | ✅ Render termina TLS; cookies `Secure` en `prod` |
 | Errores sin trazas ni detalles internos | ✅ |
 | Escape de datos en pantallas (prevencion de XSS) | ✅ |
 
@@ -54,7 +54,7 @@ SpaceTrack trata datos personales de conductores (documento, telefono, correo, l
 |---|---|
 | Politica de tratamiento de datos publicada y aceptada por los titulares | ⛔ |
 | Registro de la autorizacion del titular (fecha y finalidad) | ⛔ |
-| Acceso a datos personales restringido por rol (ver RNF-04) | ⛔ |
+| Acceso a datos personales restringido por rol (ver RNF-04) | 🟡 Solo usuarios autenticados con rol; aun no hay restriccion por campo |
 | Procedimiento para consultas, reclamos y supresion de datos del titular | ⛔ |
 | Registro de auditoria de quien consulta o modifica datos personales | ⛔ |
 
@@ -73,6 +73,6 @@ SpaceTrack trata datos personales de conductores (documento, telefono, correo, l
 |---|---|
 | Pruebas automatizadas de servicios (`mvn test`) | ✅ |
 | Pruebas de controladores y repositorios | ⛔ |
-| Migraciones de esquema versionadas (Flyway) en lugar de `ddl-auto=update` | ⛔ |
+| Migraciones de esquema versionadas (Flyway) en lugar de `ddl-auto=update` | 🟡 En `prod` se aplica `db/postgresql/robustez.sql` (indices y reglas de integridad) tras `ddl-auto=update` |
 | Integracion continua que ejecute las pruebas en cada pull request | ⛔ |
 | Hora del sistema fija en `America/Bogota` | ✅ |

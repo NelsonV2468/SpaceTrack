@@ -5,16 +5,19 @@ Sistema de gestion de rutas de distribucion para **City Urban Bogota**. Centrali
 ## Tecnologias
 
 - Java 21
-- Spring Boot 3.4.4 (Spring MVC, Thymeleaf, API REST, Spring Data JPA, Bean Validation)
+- Spring Boot 3.4.4 (Spring MVC, Thymeleaf, API REST, Spring Data JPA, Bean Validation, Spring Security)
+- Frontend en Next.js 16 + React 19 + TypeScript (carpeta `frontend/`), exportado como sitio estatico y servido por Spring
+- Login con Neon Auth y roles (ADMIN, OPERADOR, CONSULTA)
+- PostgreSQL (Neon) en produccion; despliegue en Render con Docker
 - H2 en archivo local para desarrollo
 - Maven y JUnit 5 / Mockito
 
 ## Arquitectura
 
-Monolito por capas. Cada modulo de negocio (`clientes`, `vehiculos`, `conductores`, `operaciones`, `necesidades`, `zonas`, `rutas`, `entregas`, `posiciones`) se organiza en `domain`, `repository`, `service`, `dto` y `controller`. Lo comun (excepciones, reloj, programacion de tareas) vive en `shared`.
+Monolito por capas. Cada modulo de negocio (`clientes`, `vehiculos`, `conductores`, `operaciones`, `necesidades`, `zonas`, `rutas`, `entregas`, `posiciones`, `usuarios`) se organiza en `domain`, `repository`, `service`, `dto` y `controller`. Lo comun (excepciones, reloj, seguridad, configuracion) vive en `shared`.
 
 ```
-Panel web / pantallas Thymeleaf / API REST -> Controller -> Service -> Repository -> H2
+Panel Next.js / pantallas Thymeleaf / API REST -> Spring Security -> Controller -> Service -> Repository -> H2 (dev) o PostgreSQL (prod)
 ```
 
 Todas las interfaces usan los mismos servicios, por lo que las reglas de negocio se aplican igual en cada canal. Fechas y horarios se evaluan siempre en hora de Bogota (`America/Bogota`), sin importar la zona horaria del servidor.
@@ -26,8 +29,30 @@ Todas las interfaces usan los mismos servicios, por lo que las reglas de negocio
 1. Abre la carpeta `SpaceTrack` como proyecto Maven.
 2. Configura el SDK del proyecto como Java 21.
 3. Espera la descarga de dependencias de Maven.
-4. Ejecuta `SpaceTrackApplication`.
-5. Abre `http://localhost:8080` (redirige al panel `panel.html`).
+4. Compila el frontend una vez (necesita Node.js 20 o superior):
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   ```
+   El build exporta el sitio y lo copia a `src/main/resources/webapp` (ignorado por git).
+5. Ejecuta `SpaceTrackApplication` y abre `http://localhost:8080` (redirige a `/panel/`).
+
+## Frontend (Next.js)
+
+```
+frontend/src/
+  app/(acceso)/login, registro   Paginas separadas de inicio de sesion y creacion de cuenta
+  app/panel/...                  Tablero, monitoreo, modulos, detalle de ruta, entregas, usuarios
+  modulos/config.tsx             Columnas y campos de cada modulo CRUD (agregar uno nuevo = declararlo aqui)
+  components/                    Formulario generico, modal, mapa SVG de Bogota, avisos, UI
+  lib/                           Cliente del API (sesion + CSRF), Neon Auth, tipos y formatos
+```
+
+- **Desarrollo con recarga en caliente**: con el backend corriendo en `:8080` (perfil `dev`), ejecuta `npm run dev` en `frontend/` y abre `http://localhost:3000`. Next reenvia `/api` y `/auth` al backend.
+- **Produccion**: el `Dockerfile` compila el frontend y lo empaqueta en el mismo `.jar`; todo queda en un solo servicio y dominio (la cookie de sesion y el CSRF funcionan sin CORS).
+- **Seguridad**: la CSP no permite `'unsafe-inline'`; el build calcula los hashes SHA-256 de los scripts en linea de Next (`csp-hashes.txt`) y Spring autoriza solo esos.
+- `npm run typecheck` valida los tipos de TypeScript.
 
 ### Linea de comandos
 
@@ -39,11 +64,11 @@ mvn spring-boot:run
 mvn test
 ```
 
-La consola H2 queda disponible en `http://localhost:8080/h2-console` (URL JDBC `jdbc:h2:file:./data/spacetrack`, usuario `sa`, contrasena vacia). Es solo para desarrollo: ver [requisitos no funcionales](docs/requisitos-no-funcionales.md).
+En el perfil `dev` (por defecto) la consola H2 queda disponible en `http://localhost:8080/h2-console` (URL JDBC `jdbc:h2:file:./data/spacetrack`, usuario `sa`, contrasena vacia) y el login esta apagado. El perfil `prod` usa PostgreSQL, exige login y deshabilita la consola H2; sus credenciales llegan por variables de entorno (ver `.env.example`).
 
 ## Interfaces
 
-- **Panel de operacion** (`/panel.html`): interfaz principal con tablero, monitoreo en mapa, gestion, planeacion y registro de entregas.
+- **Panel de operacion** (`/panel/`, responsive): tablero de control, monitoreo en mapa, gestion, planeacion, registro de entregas y, para administradores, usuarios y roles. El acceso se hace en `/login/` y las cuentas nuevas se crean en `/registro/`. Las direcciones antiguas `/panel.html` y `/login.html` redirigen a las nuevas.
 - **Pantallas de gestion** (Thymeleaf): `/clientes`, `/vehiculos`, `/conductores` y `/operaciones`.
 - **Mapa**: plano esquematico de Bogota en SVG (funciona sin internet). Las paradas se ubican en la localidad de la zona y el vehiculo avanza entre ellas segun las entregas registradas; se actualiza cada 5 segundos. Solo se dibujan vehiculos de rutas EN_CURSO. No es GPS real.
 
@@ -94,6 +119,8 @@ La consola H2 queda disponible en `http://localhost:8080/h2-console` (URL JDBC `
 
 Todas las respuestas de error tienen la forma `{"fecha", "estado", "mensaje", "errores"?}`. Las validaciones de formato responden 400; las reglas de negocio, 409; los recursos inexistentes, 404.
 
+Con el login activo (perfil `prod`): todos los roles pueden consultar (GET); ADMIN y OPERADOR pueden crear y actualizar; solo ADMIN elimina y gestiona usuarios. Las peticiones que modifican datos requieren el token CSRF de la sesion.
+
 | Metodo | Ruta | Funcion |
 |---|---|---|
 | GET, POST | `/api/clientes` | Lista o registra clientes |
@@ -118,6 +145,10 @@ Todas las respuestas de error tienen la forma `{"fecha", "estado", "mensaje", "e
 | GET, POST | `/api/entregas` (`?rutaId=`) | Lista o registra entregas |
 | DELETE | `/api/entregas/{id}` | Corrige (elimina) una entrega |
 | GET | `/api/posiciones` (`?rutaId=&limite=`) | Posiciones guardadas, las mas recientes primero |
+| GET | `/api/usuarios` | Lista usuarios (solo ADMIN) |
+| PATCH | `/api/usuarios/{id}/rol` | Cambia el rol de un usuario (solo ADMIN) |
+| GET | `/auth/config`, `/auth/me` | Configuracion de Neon Auth y usuario de la sesion actual |
+| POST | `/auth/session` | Abre la sesion con el token de Neon Auth |
 | POST | `/api/posiciones` | Registra una posicion manual (`{"rutaId":1,"latitud":4.65,"longitud":-74.08,"velocidadKmh":30}`; `velocidadKmh` es opcional) |
 
 Ejemplo para crear un cliente:
