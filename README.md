@@ -90,6 +90,7 @@ Al arrancar se carga el caso de ejemplo del acta (distribucion con cadena de fri
 - Todo se crea con los servicios de cada modulo, asi que se aplican las mismas reglas de negocio que en el panel; la carga va en una sola transaccion y si una regla la rechaza no queda nada a medias.
 - Solo con `demo` la aplicacion usa una base H2 en memoria: cada arranque empieza limpio y los datos se pierden al detenerla.
 - Para conservarlos combina perfiles: `-Dspring-boot.run.profiles=dev,demo` usa la base de `./data`. Si ya hay clientes registrados la carga no se repite.
+- La carga nunca impide que la aplicacion arranque. Si falla se reintenta una vez, por ejemplo si el dia cambia a medianoche durante la carga. Si vuelve a fallar, el registro explica el motivo (por ejemplo, una placa `DMO101` ya registrada) y la aplicacion sigue funcionando sin datos de ejemplo.
 - Sin el perfil `demo` no se carga nada. No lo actives en produccion.
 
 ## Interfaces

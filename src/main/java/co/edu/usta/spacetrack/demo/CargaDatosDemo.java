@@ -28,7 +28,8 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -44,6 +45,10 @@ import java.util.EnumSet;
  * <p>Todo se crea con los Service de cada modulo, asi que se aplican las mismas reglas de negocio que en el panel.
  * Si ya hay clientes registrados no se carga nada, para no duplicar datos en una base persistente.
  * La carga va en una sola transaccion: si una regla la rechaza, no queda nada a medias.</p>
+ *
+ * <p>La carga nunca impide que la aplicacion arranque: si falla se reintenta una vez (por ejemplo, si el dia
+ * cambia a medianoche mientras se cargan los datos) y, si vuelve a fallar, se registra el motivo y la
+ * aplicacion sigue funcionando sin datos de ejemplo.</p>
  */
 @Component
 @Profile("demo")
@@ -56,6 +61,9 @@ public class CargaDatosDemo implements ApplicationRunner {
     static final LocalTime FIN_TIPICO = LocalTime.of(20, 0);
     /** Margen minimo entre el arranque y el fin de la franja, para que la ruta "al dia" no genere alerta. */
     static final Duration MARGEN_MINIMO = Duration.ofHours(2);
+    /** Ultimo instante del dia, con segundos, para que una ruta iniciada a las 23:59:30 siga dentro de la franja. */
+    static final LocalTime FIN_DEL_DIA = LocalTime.of(23, 59, 59);
+    static final int INTENTOS = 2;
 
     private final ClienteRepository clienteRepository;
     private final ClienteService clienteService;
@@ -68,11 +76,12 @@ public class CargaDatosDemo implements ApplicationRunner {
     private final EntregaService entregaService;
     private final Clock reloj;
     private final long minutosPorEntrega;
+    private final TransactionTemplate transaccion;
 
     public CargaDatosDemo(ClienteRepository clienteRepository, ClienteService clienteService, OperacionService operacionService,
                           NecesidadClienteService necesidadService, VehiculoService vehiculoService,
                           ConductorService conductorService, ZonaService zonaService, RutaService rutaService,
-                          EntregaService entregaService, Clock reloj,
+                          EntregaService entregaService, Clock reloj, PlatformTransactionManager transacciones,
                           @Value("${spacetrack.alertas.minutos-por-entrega:10}") long minutosPorEntrega) {
         this.clienteRepository = clienteRepository;
         this.clienteService = clienteService;
@@ -85,17 +94,37 @@ public class CargaDatosDemo implements ApplicationRunner {
         this.entregaService = entregaService;
         this.reloj = reloj;
         this.minutosPorEntrega = minutosPorEntrega;
+        this.transaccion = new TransactionTemplate(transacciones);
     }
 
     @Override
-    @Transactional
     public void run(ApplicationArguments argumentos) {
-        if (clienteRepository.count() > 0) {
-            log.info("Perfil demo: ya existen clientes registrados; no se cargan datos de ejemplo");
-            return;
+        for (int intento = 1; intento <= INTENTOS; intento++) {
+            try {
+                // Cada intento es una transaccion completa: si algo falla se revierte todo lo creado en ese intento.
+                Boolean cargado = transaccion.execute(estado -> {
+                    if (clienteRepository.count() > 0) {
+                        return false;
+                    }
+                    cargar();
+                    return true;
+                });
+                if (Boolean.TRUE.equals(cargado)) {
+                    log.info("Perfil demo: datos de ejemplo cargados (1 cliente, 1 operacion, 5 vehiculos, 5 conductores, 5 zonas, 5 rutas)");
+                } else {
+                    log.info("Perfil demo: ya existen clientes registrados; no se cargan datos de ejemplo");
+                }
+                return;
+            } catch (RuntimeException error) {
+                if (intento < INTENTOS) {
+                    log.warn("Perfil demo: la carga de datos de ejemplo fallo ({}); se reintenta", error.getMessage());
+                } else {
+                    log.error("Perfil demo: no se cargaron los datos de ejemplo ({}). La aplicacion sigue funcionando;"
+                            + " revise que la base no tenga datos con los mismos codigos (DMO101, CT-DEMO-001, R-DEMO-01...)",
+                            error.getMessage(), error);
+                }
+            }
         }
-        cargar();
-        log.info("Perfil demo: datos de ejemplo cargados (1 cliente, 1 operacion, 5 vehiculos, 5 conductores, 5 zonas, 5 rutas)");
     }
 
     void cargar() {
@@ -173,11 +202,10 @@ public class CargaDatosDemo implements ApplicationRunner {
         return unaHoraAntes.isBefore(INICIO_TIPICO) ? unaHoraAntes : INICIO_TIPICO;
     }
 
-    /** La franja termina a las 20:00, o al menos dos horas despues del arranque (maximo 23:59). */
+    /** La franja termina a las 20:00, o al menos dos horas despues del arranque (maximo 23:59:59). */
     static LocalTime horaFinFranja(LocalTime ahora) {
-        LocalTime limite = LocalTime.of(23, 59);
-        if (!ahora.isBefore(limite.minus(MARGEN_MINIMO))) {
-            return limite;
+        if (!ahora.isBefore(FIN_DEL_DIA.minus(MARGEN_MINIMO))) {
+            return FIN_DEL_DIA;
         }
         LocalTime conMargen = ahora.plus(MARGEN_MINIMO);
         return conMargen.isAfter(FIN_TIPICO) ? conMargen : FIN_TIPICO;
