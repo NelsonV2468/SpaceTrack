@@ -66,6 +66,32 @@ mvn test
 
 En el perfil `dev` (por defecto) la consola H2 queda disponible en `http://localhost:8080/h2-console` (URL JDBC `jdbc:h2:file:./data/spacetrack`, usuario `sa`, contrasena vacia) y el login esta apagado. El perfil `prod` usa PostgreSQL, exige login y deshabilita la consola H2; sus credenciales llegan por variables de entorno (ver `.env.example`).
 
+### Perfil demo (datos de ejemplo)
+
+Para presentar el sistema sin registrar todo a mano, arranca con el perfil `demo`:
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=demo
+```
+
+Con el `.jar` empaquetado: `java -jar target/spacetrack-0.0.1-SNAPSHOT.jar --spring.profiles.active=demo`. En IntelliJ IDEA: *Run/Debug Configurations* → *Active profiles* = `demo`.
+
+Al arrancar se carga el caso de ejemplo del acta (distribucion con cadena de frio, flota de varios vehiculos y entregas zonificadas):
+
+| Datos | Contenido |
+|---|---|
+| Cliente | Lacteos La Pradera SAS (demo), ficticio |
+| Operacion | `CT-DEMO-001`, refrigerada, todos los dias, 5 vehiculos, 1.200 entregas, vigente desde hace 30 dias y por 6 meses |
+| Necesidad | 5 furgones refrigerados de 1.500 kg; franja de 06:00 a 20:00, ampliada si la demo arranca de madrugada o de noche para que las rutas puedan iniciar |
+| Flota | 5 furgones refrigerados (`DMO101` a `DMO105`) y 5 conductores con licencia vigente |
+| Zonas | Chapinero, Kennedy, Suba, Engativa y Usaquen |
+| Rutas | `R-DEMO-01` en curso y al dia · `R-DEMO-02` en curso y atrasada (genera la alerta critica) · `R-DEMO-03` en curso con 9 de 10 entregas · `R-DEMO-04` pendiente · `R-DEMO-05` finalizada |
+
+- Todo se crea con los servicios de cada modulo, asi que se aplican las mismas reglas de negocio que en el panel; la carga va en una sola transaccion y si una regla la rechaza no queda nada a medias.
+- Solo con `demo` la aplicacion usa una base H2 en memoria: cada arranque empieza limpio y los datos se pierden al detenerla.
+- Para conservarlos combina perfiles: `-Dspring-boot.run.profiles=dev,demo` usa la base de `./data`. Si ya hay clientes registrados la carga no se repite.
+- Sin el perfil `demo` no se carga nada. No lo actives en produccion.
+
 ## Interfaces
 
 - **Panel de operacion** (`/panel/`, responsive): tablero de control, monitoreo en mapa, gestion, planeacion, registro de entregas y, para administradores, usuarios y roles. El acceso se hace en `/login/` y las cuentas nuevas se crean en `/registro/`. Las direcciones antiguas `/panel.html` y `/login.html` redirigen a las nuevas.
