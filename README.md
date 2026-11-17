@@ -114,7 +114,8 @@ En el perfil `dev` (por defecto) la consola H2 queda disponible en `http://local
 - **Advertencia**: faltan `spacetrack.alertas.minutos-aviso` minutos o menos (60 por defecto) para el cierre de la franja.
 - **Critica**: el tiempo restante no alcanza para las entregas pendientes (estimadas en `spacetrack.alertas.minutos-por-entrega` minutos cada una, 10 por defecto), la franja ya termino, o la ruta sigue abierta desde un dia anterior.
 - Si el contrato no tiene necesidades que operen hoy, no hay franja y no se genera alerta.
-- El tablero del panel muestra las alertas vigentes (criticas primero) y el detalle de la ruta muestra la suya; ambos se actualizan cada 30 segundos.
+- **Pantalla de alertas** (`/panel/alertas/`, menu Ejecucion > Alertas): indicadores de alertas criticas, advertencias y entregas en riesgo, tabla filtrable por nivel con enlace al detalle de cada ruta. El menu muestra un contador (rojo si hay criticas).
+- El tablero del panel muestra las alertas vigentes (criticas primero, con enlace a la pantalla) y el detalle de la ruta muestra la suya; todo se actualiza cada 30 segundos.
 
 ### Posiciones
 - Se genera una posicion simulada de cada ruta EN_CURSO cada `spacetrack.simulacion.intervalo-segundos` (10 por defecto).

@@ -3,18 +3,24 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { REFRESCO_ALERTAS_MS } from "@/components/AlertasRutas";
 import { ProveedorAvisos } from "@/components/Avisos";
 import { Icono } from "@/components/Icono";
 import { api, configurarExpiracion } from "@/lib/api";
+import { useRecurso } from "@/lib/hooks";
 import { MENU, itemActivo } from "@/lib/navegacion";
 import { ContextoSesion, NOMBRE_ROL, type Permisos } from "@/lib/sesion";
-import type { UsuarioSesion } from "@/lib/tipos";
+import type { AlertaRuta, UsuarioSesion } from "@/lib/tipos";
 
 export default function LayoutPanel({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const ruta = usePathname();
   const [usuario, setUsuario] = useState<UsuarioSesion | null>(null);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  // ON-4: contador de alertas vigentes en el menu; se consulta solo con la sesion abierta.
+  const alertas = useRecurso<AlertaRuta[]>(usuario ? "/api/alertas/rutas" : null, REFRESCO_ALERTAS_MS);
+  const totalAlertas = alertas.datos?.length ?? 0;
+  const hayCriticas = (alertas.datos ?? []).some((a) => a.nivel === "CRITICA");
 
   useEffect(() => {
     configurarExpiracion(() => router.replace("/login/"));
@@ -68,6 +74,9 @@ export default function LayoutPanel({ children }: { children: React.ReactNode })
                       <Link key={i.href} href={i.href} className={activo?.href === i.href ? "activo" : undefined}
                         aria-current={activo?.href === i.href ? "page" : undefined}>
                         <Icono nombre={i.icono} /><span className="texto">{i.texto}</span>
+                        {i.contadorAlertas && totalAlertas ? (
+                          <span className={`contador${hayCriticas ? " critico" : ""}`} aria-label={`${totalAlertas} alertas vigentes`}>{totalAlertas}</span>
+                        ) : null}
                       </Link>
                     ))}
                   </div>

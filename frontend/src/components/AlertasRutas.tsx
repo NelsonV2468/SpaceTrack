@@ -17,7 +17,10 @@ export function AlertasRutas() {
 
   return (
     <Panel titulo="Alertas de rutas próximas a finalizar"
-      extra={<Etiqueta tono={criticas ? "danger" : "warn"}>{criticas ? `${criticas} crítica(s)` : `${alertas.length} advertencia(s)`}</Etiqueta>}>
+      extra={<>
+        <Etiqueta tono={criticas ? "danger" : "warn"}>{criticas ? `${criticas} crítica(s)` : `${alertas.length} advertencia(s)`}</Etiqueta>
+        <Link className="enlace" href="/panel/alertas/">Ver todas</Link>
+      </>}>
       <div className="panel-cuerpo" aria-live="polite">
         {alertas.map((a) => <AvisoAlerta key={a.rutaId} alerta={a} enlace />)}
       </div>
