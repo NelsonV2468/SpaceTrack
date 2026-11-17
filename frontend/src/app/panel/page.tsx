@@ -7,10 +7,22 @@ import { Icono } from "@/components/Icono";
 import { BarraEntregas, Cargando, Doble, Encabezado, Etiqueta, EstadoRutaEtiqueta, Kpi, Leyenda, Panel, Vacio } from "@/components/ui";
 import { licenciaVigente, miles, porcentaje } from "@/lib/formato";
 import { useRecurso } from "@/lib/hooks";
+import { useSesion } from "@/lib/sesion";
 import type { Conductor, Necesidad, Ruta, Vehiculo } from "@/lib/tipos";
+
+/** Saludo segun la hora de Bogota y fecha larga, por ejemplo "Buenas tardes, Laura · lunes 16 de noviembre". */
+function saludo(nombre: string): string {
+  const ahora = new Date();
+  const hora = Number(new Intl.DateTimeFormat("es-CO", { hour: "numeric", hourCycle: "h23", timeZone: "America/Bogota" }).format(ahora));
+  const parte = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
+  const fecha = new Intl.DateTimeFormat("es-CO", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota" }).format(ahora);
+  const pila = nombre.split(/[\s@]+/)[0];
+  return `${parte}${pila ? `, ${pila}` : ""} · ${fecha}`;
+}
 
 export default function Tablero() {
   const router = useRouter();
+  const { usuario } = useSesion();
   const rutas = useRecurso<Ruta[]>("/api/rutas");
   const vehiculos = useRecurso<Vehiculo[]>("/api/vehiculos");
   const conductores = useRecurso<Conductor[]>("/api/conductores");
@@ -34,13 +46,13 @@ export default function Tablero() {
 
   return (
     <>
-      <Encabezado titulo="Tablero de control" subtitulo="Resumen de la operación de distribución."
+      <Encabezado antetitulo={saludo(usuario.nombre || usuario.correo)} titulo="Tablero de control" subtitulo="Así va la operación de distribución hoy."
         acciones={<>
           <Link className="boton secundario" href="/panel/monitoreo/"><Icono nombre="monitoreo" />Ver mapa</Link>
           <Link className="boton primario" href="/panel/rutas/"><Icono nombre="rutas" />Gestionar rutas</Link>
         </>} />
 
-      <section className="kpis">
+      <section className="kpis tres">
         <Kpi titulo="Rutas en curso" valor={cuenta("EN_CURSO")} nota={`de ${listaRutas.length} rutas registradas`} acento="#1d5fbf" />
         <Kpi titulo="Rutas pendientes" valor={cuenta("PENDIENTE")} nota={sinRecursos ? `${sinRecursos} sin vehículo o conductor` : "Todas con recursos asignados"}
           acento={sinRecursos ? "#9a5b00" : "#55627a"} />

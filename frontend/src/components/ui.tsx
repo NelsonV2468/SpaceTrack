@@ -51,7 +51,7 @@ export function Leyenda() {
   return (
     <div className="leyenda">
       <span><i style={{ background: "var(--ok)" }} />Entregadas</span>
-      <span><i style={{ background: "#d9534a" }} />No entregadas</span>
+      <span><i style={{ background: "#e5484d" }} />No entregadas</span>
       <span><i style={{ background: "var(--neutral-soft)" }} />Pendientes</span>
     </div>
   );
@@ -80,13 +80,14 @@ export function Cargando() {
   return <div className="vacio" aria-busy="true">Cargando…</div>;
 }
 
-export function Encabezado({ titulo, subtitulo, acciones, volver }: {
-  titulo: string; subtitulo?: string; acciones?: ReactNode; volver?: ReactNode;
+export function Encabezado({ titulo, subtitulo, acciones, volver, antetitulo }: {
+  titulo: string; subtitulo?: string; acciones?: ReactNode; volver?: ReactNode; antetitulo?: ReactNode;
 }) {
   return (
     <header className="encabezado">
       <div>
         {volver}
+        {antetitulo ? <p className="saludo">{antetitulo}</p> : null}
         <h1>{titulo}</h1>
         {subtitulo ? <p className="subtitulo">{subtitulo}</p> : null}
       </div>
