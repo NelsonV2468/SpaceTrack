@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface RutaRepository extends JpaRepository<Ruta, Long> {
@@ -20,6 +21,11 @@ public interface RutaRepository extends JpaRepository<Ruta, Long> {
     boolean existsByConductorIdAndEstadoAndIdNot(Long conductorId, EstadoRuta estado, Long id);
 
     boolean existsByOperacionIdAndEstado(Long operacionId, EstadoRuta estado);
+
+    // ON-20 cierre diario: rutas finalizadas dentro de un dia y rutas que siguen abiertas desde ese dia o antes.
+    List<Ruta> findByEstadoAndFechaFinRealGreaterThanEqualAndFechaFinRealLessThanOrderByCodigoAsc(
+            EstadoRuta estado, LocalDateTime desde, LocalDateTime hasta);
+    List<Ruta> findByEstadoAndFechaInicioRealLessThanOrderByCodigoAsc(EstadoRuta estado, LocalDateTime hasta);
 
     @Query("select coalesce(sum(r.numeroEntregasProgramadas), 0) from Ruta r where r.operacion.id = :operacionId")
     long sumarEntregasProgramadasPorOperacion(@Param("operacionId") Long operacionId);

@@ -191,3 +191,39 @@ export interface AlertaRuta {
   mensaje: string;
   calculadoEn: string;
 }
+
+/** ON-20: ruta dentro del resumen o del cierre de un dia. */
+export interface RutaCierre {
+  rutaId: number;
+  codigoRuta: string;
+  nombreRuta: string | null;
+  nombreZona: string | null;
+  placaVehiculo: string | null;
+  nombreConductor: string | null;
+  fechaInicioReal: string | null;
+  fechaFinReal: string | null;
+  entregasProgramadas: number;
+  entregasRealizadas: number;
+  entregasNoRealizadas: number;
+  entregasSinRegistrar: number;
+}
+
+/** ON-20: cierre diario. Si cerrado es false es la vista previa calculada en vivo. */
+export interface CierreDiario {
+  id: number | null;
+  fecha: string;
+  cerrado: boolean;
+  fechaRegistro: string | null;
+  registradoPor: string | null;
+  observaciones: string | null;
+  rutasCerradas: number;
+  entregasProgramadas: number;
+  entregasRealizadas: number;
+  entregasNoRealizadas: number;
+  entregasSinRegistrar: number;
+  cumplimiento: number;
+  rutas: RutaCierre[];
+  rutasEnCurso: string[];
+  puedeCerrar: boolean;
+  motivoNoCierre: string | null;
+}
