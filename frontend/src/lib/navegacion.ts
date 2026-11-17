@@ -28,6 +28,7 @@ export const MENU: { grupo: string; items: ItemMenu[] }[] = [
   { grupo: "Ejecución", items: [
     { href: "/panel/entregas/", texto: "Entregas", icono: "entregas" },
     { href: "/panel/alertas/", texto: "Alertas", icono: "alertas", contadorAlertas: true },
+    { href: "/panel/cierres/", texto: "Cierre diario", icono: "cierre" },
   ] },
   { grupo: "Administración", items: [
     { href: "/panel/usuarios/", texto: "Usuarios", icono: "usuarios", soloAdmin: true },

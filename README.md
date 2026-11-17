@@ -109,6 +109,11 @@ En el perfil `dev` (por defecto) la consola H2 queda disponible en `http://local
 - Solo en rutas EN_CURSO y sin superar las programadas. Las no entregadas exigen una novedad.
 - Solo se corrigen (eliminan) entregas de rutas EN_CURSO.
 
+### Cierre diario de rutas (ON-20, epica ON-3 Seguimiento de rutas)
+- **Pantalla** `/panel/cierres/` (menu Ejecucion > Cierre diario): se elige la fecha y se ve el resumen del dia (rutas finalizadas ese dia segun su hora real de fin, entregas realizadas, no entregadas y sin registrar, y cumplimiento) y el historial de cierres.
+- **Cerrar el dia** (ADMIN u OPERADOR) guarda una copia fija del resumen con fecha, usuario y observaciones. No se permite si quedan rutas EN_CURSO iniciadas ese dia o antes, si la fecha es futura o si el dia ya esta cerrado.
+- **Despues del cierre** no se pueden iniciar ni finalizar rutas en ese dia. Los cambios posteriores (por ejemplo, eliminar una ruta pendiente) no alteran el cierre guardado.
+
 ### Alertas de rutas proximas a finalizar (ON-4)
 - Se evaluan las rutas EN_CURSO que tienen entregas pendientes. El fin de la ruta es el cierre de la franja horaria de hoy definida por las necesidades del contrato (la mas tardia entre las que ya empezaron).
 - **Advertencia**: faltan `spacetrack.alertas.minutos-aviso` minutos o menos (60 por defecto) para el cierre de la franja.
@@ -154,6 +159,9 @@ Con el login activo (perfil `prod`): todos los roles pueden consultar (GET); ADM
 | DELETE | `/api/entregas/{id}` | Corrige (elimina) una entrega |
 | GET | `/api/alertas/rutas` | Alertas vigentes de rutas proximas a finalizar sin completar entregas |
 | GET | `/api/alertas/rutas/{rutaId}` | Alerta de una ruta (204 si no tiene) |
+| GET | `/api/cierres` | Historial de cierres diarios |
+| GET | `/api/cierres/{fecha}` | Cierre guardado de la fecha (`2026-11-16`), o la vista previa si el dia sigue abierto |
+| POST | `/api/cierres` | Cierra un dia (`{"fecha":"2026-11-16","observaciones":"..."}`; solo ADMIN u OPERADOR) |
 | GET | `/api/posiciones` (`?rutaId=&limite=`) | Posiciones guardadas, las mas recientes primero |
 | GET | `/api/usuarios` | Lista usuarios (solo ADMIN) |
 | PATCH | `/api/usuarios/{id}/rol` | Cambia el rol de un usuario (solo ADMIN) |

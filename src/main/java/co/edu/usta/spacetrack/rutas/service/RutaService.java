@@ -1,5 +1,6 @@
 package co.edu.usta.spacetrack.rutas.service;
 
+import co.edu.usta.spacetrack.cierres.repository.CierreDiarioRepository;
 import co.edu.usta.spacetrack.conductores.domain.Conductor;
 import co.edu.usta.spacetrack.conductores.repository.ConductorRepository;
 import co.edu.usta.spacetrack.entregas.domain.EstadoEntrega;
@@ -50,13 +51,14 @@ public class RutaService {
     private final ConductorRepository conductorRepository;
     private final EntregaRepository entregaRepository;
     private final NecesidadClienteRepository necesidadRepository;
+    private final CierreDiarioRepository cierreRepository;
     private final SimuladorUbicacion simuladorUbicacion;
     private final Clock reloj;
 
     public RutaService(RutaRepository rutaRepository, ZonaRepository zonaRepository, OperacionRepository operacionRepository,
                        VehiculoRepository vehiculoRepository, ConductorRepository conductorRepository,
                        EntregaRepository entregaRepository, NecesidadClienteRepository necesidadRepository,
-                       SimuladorUbicacion simuladorUbicacion, Clock reloj) {
+                       CierreDiarioRepository cierreRepository, SimuladorUbicacion simuladorUbicacion, Clock reloj) {
         this.rutaRepository = rutaRepository;
         this.zonaRepository = zonaRepository;
         this.operacionRepository = operacionRepository;
@@ -64,6 +66,7 @@ public class RutaService {
         this.conductorRepository = conductorRepository;
         this.entregaRepository = entregaRepository;
         this.necesidadRepository = necesidadRepository;
+        this.cierreRepository = cierreRepository;
         this.simuladorUbicacion = simuladorUbicacion;
         this.reloj = reloj;
     }
@@ -153,6 +156,7 @@ public class RutaService {
             throw new ReglaDeNegocioException("Asigne un vehiculo y un conductor antes de iniciar la ruta");
         }
         LocalDateTime ahora = LocalDateTime.now(reloj);
+        validarDiaAbierto(ahora, "iniciar");
         validarOperacionDisponible(ruta.getOperacion(), "iniciar rutas");
         validarCalendario(ruta.getOperacion(), ahora);
         validarVehiculo(ruta, ruta.getVehiculo());
@@ -167,8 +171,10 @@ public class RutaService {
     public RutaResponse finalizar(Long id) {
         Ruta ruta = buscarEntidad(id);
         validarEstadoActual(ruta, EstadoRuta.EN_CURSO, "finalizar");
+        LocalDateTime ahora = LocalDateTime.now(reloj);
+        validarDiaAbierto(ahora, "finalizar");
         ruta.setEstado(EstadoRuta.FINALIZADA);
-        ruta.setFechaFinReal(LocalDateTime.now(reloj));
+        ruta.setFechaFinReal(ahora);
         String advertencia = alertaDeEntregasFaltantes(ruta);
         if (advertencia != null) {
             log.warn(advertencia);
@@ -182,6 +188,14 @@ public class RutaService {
 
     public List<UbicacionRutaResponse> ubicaciones() {
         return rutaRepository.findAllByOrderByCodigoAsc().stream().map(this::calcularUbicacion).toList();
+    }
+
+    // ON-20: despues del cierre diario no se inician ni finalizan rutas en ese dia.
+    private void validarDiaAbierto(LocalDateTime ahora, String accion) {
+        if (cierreRepository.existsByFecha(ahora.toLocalDate())) {
+            throw new ReglaDeNegocioException("El dia " + ahora.toLocalDate() + " ya fue cerrado; no se pueden "
+                    + accion + " rutas");
+        }
     }
 
     private UbicacionRutaResponse calcularUbicacion(Ruta ruta) {

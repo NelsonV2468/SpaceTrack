@@ -1,5 +1,6 @@
 package co.edu.usta.spacetrack.rutas.service;
 
+import co.edu.usta.spacetrack.cierres.repository.CierreDiarioRepository;
 import co.edu.usta.spacetrack.clientes.domain.Cliente;
 import co.edu.usta.spacetrack.conductores.domain.Conductor;
 import co.edu.usta.spacetrack.conductores.repository.ConductorRepository;
@@ -56,8 +57,9 @@ class RutaServiceTest {
     private final ConductorRepository conductorRepository = mock(ConductorRepository.class);
     private final EntregaRepository entregaRepository = mock(EntregaRepository.class);
     private final NecesidadClienteRepository necesidadRepository = mock(NecesidadClienteRepository.class);
+    private final CierreDiarioRepository cierreRepository = mock(CierreDiarioRepository.class);
     private final RutaService rutaService = new RutaService(rutaRepository, zonaRepository, operacionRepository,
-            vehiculoRepository, conductorRepository, entregaRepository, necesidadRepository, new SimuladorUbicacion(),
+            vehiculoRepository, conductorRepository, entregaRepository, necesidadRepository, cierreRepository, new SimuladorUbicacion(),
             Clock.fixed(AHORA.atZone(BOGOTA).toInstant(), BOGOTA));
 
     @Test
@@ -258,6 +260,27 @@ class RutaServiceTest {
         assertThat(respuesta.estado()).isEqualTo(EstadoRuta.FINALIZADA);
         assertThat(respuesta.advertencia()).isEqualTo("La ruta R-001 se finalizo con entregas faltantes en la zona "
                 + "Zona Norte (Usaquén): 3 sin registrar y 2 no entregadas de 12 programadas");
+    }
+
+    @Test
+    void noIniciaRutasEnUnDiaYaCerrado() {
+        when(rutaRepository.findById(1L)).thenReturn(Optional.of(rutaLista()));
+        when(cierreRepository.existsByFecha(HOY)).thenReturn(true);
+
+        assertThatThrownBy(() -> rutaService.iniciar(1L))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("El dia 2026-11-11 ya fue cerrado; no se pueden iniciar rutas");
+        verify(rutaRepository, never()).save(any());
+    }
+
+    @Test
+    void noFinalizaRutasEnUnDiaYaCerrado() {
+        when(rutaRepository.findById(1L)).thenReturn(Optional.of(ruta(EstadoRuta.EN_CURSO)));
+        when(cierreRepository.existsByFecha(HOY)).thenReturn(true);
+
+        assertThatThrownBy(() -> rutaService.finalizar(1L))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("El dia 2026-11-11 ya fue cerrado; no se pueden finalizar rutas");
     }
 
     @Test

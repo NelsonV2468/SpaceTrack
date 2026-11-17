@@ -17,6 +17,7 @@ const TRAZOS = {
   salir: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11",
   pin: "M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z",
   alertas: "M12 3 2 20h20L12 3zM12 9v5M12 17h.01",
+  cierre: "M4 5h16v16H4zM4 9h16M8 3v4M16 3v4M9 15l2 2 4-4",
 } as const;
 
 export type NombreIcono = keyof typeof TRAZOS;

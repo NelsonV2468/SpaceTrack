@@ -218,6 +218,27 @@ class SeguridadIntegracionTest {
         mvc.perform(get("/panel/alertas").with(como(Rol.CONSULTA))).andExpect(redirectedUrl("/panel/alertas/"));
     }
 
+    // ---------- ON-20: cierre diario de rutas ----------
+
+    @Test
+    void elCierreDiarioSoloLoHacenAdminUOperadorConCsrf() throws Exception {
+        String ayer = "{\"fecha\":\"" + java.time.LocalDate.now().minusDays(1) + "\"}";
+        mvc.perform(get("/api/cierres")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/cierres").with(como(Rol.CONSULTA))).andExpect(status().isOk());
+        mvc.perform(get("/api/cierres/2026-01-05").with(como(Rol.CONSULTA))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.cerrado").value(false));
+        mvc.perform(post("/api/cierres").with(como(Rol.CONSULTA)).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ayer))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/cierres").with(como(Rol.OPERADOR)).contentType(MediaType.APPLICATION_JSON).content(ayer))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/cierres").with(como(Rol.OPERADOR)).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ayer))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.registradoPor", containsString("@correo.com")));
+        mvc.perform(post("/api/cierres").with(como(Rol.ADMIN)).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ayer))
+                .andExpect(status().isConflict());
+        mvc.perform(get("/panel/cierres").with(como(Rol.CONSULTA))).andExpect(redirectedUrl("/panel/cierres/"));
+    }
+
     @Test
     void unaCuentaPendienteNoVeAlertas() throws Exception {
         mvc.perform(get("/api/alertas/rutas").with(como(Rol.PENDIENTE))).andExpect(status().isUnauthorized());
