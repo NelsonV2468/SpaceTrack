@@ -5,6 +5,8 @@ export interface ItemMenu {
   texto: string;
   icono: NombreIcono;
   soloAdmin?: boolean;
+  /** Muestra junto al texto el numero de alertas vigentes (ON-4). */
+  contadorAlertas?: boolean;
 }
 
 export const MENU: { grupo: string; items: ItemMenu[] }[] = [
@@ -25,6 +27,7 @@ export const MENU: { grupo: string; items: ItemMenu[] }[] = [
   ] },
   { grupo: "Ejecución", items: [
     { href: "/panel/entregas/", texto: "Entregas", icono: "entregas" },
+    { href: "/panel/alertas/", texto: "Alertas", icono: "alertas", contadorAlertas: true },
   ] },
   { grupo: "Administración", items: [
     { href: "/panel/usuarios/", texto: "Usuarios", icono: "usuarios", soloAdmin: true },

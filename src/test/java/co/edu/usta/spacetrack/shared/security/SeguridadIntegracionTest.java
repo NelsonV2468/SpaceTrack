@@ -205,6 +205,24 @@ class SeguridadIntegracionTest {
                 .contentType(MediaType.APPLICATION_JSON).content("{\"rol\":\"ADMIN\"}")).andExpect(status().isForbidden());
     }
 
+    // ---------- ON-4: pantalla de alertas ----------
+
+    @Test
+    void lasAlertasExigenSesionYCualquierRolConAccesoLasConsulta() throws Exception {
+        mvc.perform(get("/api/alertas/rutas")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/panel/alertas/")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login/"));
+
+        mvc.perform(get("/api/alertas/rutas").with(como(Rol.CONSULTA))).andExpect(status().isOk()).andExpect(jsonPath("$").isArray());
+        mvc.perform(get("/api/alertas/rutas").with(como(Rol.OPERADOR))).andExpect(status().isOk());
+        mvc.perform(get("/api/alertas/rutas/999").with(como(Rol.CONSULTA))).andExpect(status().isNotFound());
+        mvc.perform(get("/panel/alertas").with(como(Rol.CONSULTA))).andExpect(redirectedUrl("/panel/alertas/"));
+    }
+
+    @Test
+    void unaCuentaPendienteNoVeAlertas() throws Exception {
+        mvc.perform(get("/api/alertas/rutas").with(como(Rol.PENDIENTE))).andExpect(status().isUnauthorized());
+    }
+
     @Test
     void sinCsrfNoSeModificanDatosAunqueHayaSesion() throws Exception {
         mvc.perform(post("/api/zonas").with(como(Rol.ADMIN)).contentType(MediaType.APPLICATION_JSON).content(zona()))
