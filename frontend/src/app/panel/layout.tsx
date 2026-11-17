@@ -31,6 +31,7 @@ export default function LayoutPanel({ children }: { children: React.ReactNode })
   useEffect(() => { setMenuAbierto(false); }, [ruta]);
 
   const activo = itemActivo(ruta);
+  const grupoActivo = MENU.find((g) => g.items.some((i) => i.href === activo?.href))?.grupo;
   useEffect(() => { document.title = `${activo?.texto ?? "Panel"} | SpaceTrack`; }, [activo]);
 
   const salir = useCallback(async () => {
@@ -92,7 +93,7 @@ export default function LayoutPanel({ children }: { children: React.ReactNode })
                 <button className="boton-menu" aria-label="Abrir menú" aria-expanded={menuAbierto} onClick={() => setMenuAbierto(true)}>
                   <Icono nombre="menu" />
                 </button>
-                <span className="titulo-barra">{activo?.texto ?? "SpaceTrack"}</span>
+                <span className="titulo-barra">{grupoActivo ? <span className="miga">{grupoActivo}</span> : null}{activo?.texto ?? "SpaceTrack"}</span>
               </div>
               <div className="usuario">
                 <span className="avatar" aria-hidden="true">{iniciales || "US"}</span>
