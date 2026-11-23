@@ -16,7 +16,8 @@ import { MODULOS } from "./config";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Registro = Record<string, any> & { id: number };
 
-export function ModuloCrud({ clave }: { clave: string }) {
+/** `nuevoCon`: abre de una vez el formulario de registro con esos valores (p. ej. la operacion de una ruta). */
+export function ModuloCrud({ clave, nuevoCon }: { clave: string; nuevoCon?: { operacion?: number } }) {
   const m = MODULOS[clave];
   const router = useRouter();
   const avisar = useAvisos();
@@ -30,6 +31,9 @@ export function ModuloCrud({ clave }: { clave: string }) {
   const { datos, error, cargando, recargar } = useRecurso<Registro[]>(url);
 
   useEffect(() => { setBusqueda(""); setFiltro(""); }, [clave]);
+  useEffect(() => {
+    if (nuevoCon?.operacion && puedeEscribir) setEdicion({ item: null });
+  }, [nuevoCon?.operacion, puedeEscribir]);
 
   const lista = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -38,6 +42,7 @@ export function ModuloCrud({ clave }: { clave: string }) {
   }, [datos, busqueda]);
 
   async function abrirFormulario(item: Registro | null) {
+    if (m.formulario) { setEdicion({ item }); return; }
     const necesarias = [...new Set(m.campos.filter((c) => c.tipo === "relacion").map((c) => c.fuente!))];
     // Catalogos del servidor para listas desplegables (p. ej. localidades); se guardan con su URL como clave.
     const catalogos = [...new Set(m.campos.filter((c) => c.opcionesApi).map((c) => c.opcionesApi!))];
@@ -120,6 +125,8 @@ export function ModuloCrud({ clave }: { clave: string }) {
                     ) : conAcciones ? (
                       <td className="derecha">
                         <div className="acciones-fila">
+                          {puedeEscribir && m.accionFila && (!m.accionFila.visible || m.accionFila.visible(item))
+                            ? <Link className="boton primario chico" href={m.accionFila.href(item)}>{m.accionFila.texto}</Link> : null}
                           {puedeEscribir ? <button className="boton secundario chico" onClick={() => abrirFormulario(item)}>Editar</button> : null}
                           {esAdmin ? <button className="boton peligro chico" onClick={() => eliminar(item)}>Eliminar</button> : null}
                         </div>
@@ -135,9 +142,15 @@ export function ModuloCrud({ clave }: { clave: string }) {
 
       {edicion ? (
         <Modal titulo={`${edicion.item ? "Editar" : m.femenino ? "Nueva" : "Nuevo"} ${m.singular}`} alCerrar={() => setEdicion(null)}>
-          <Formulario campos={m.campos} inicial={edicion.item} fuentes={fuentes} alias={m.alias}
-            textoEnviar={edicion.item ? "Guardar cambios" : `Registrar ${m.singular}`}
-            alEnviar={guardar} alCancelar={() => setEdicion(null)} />
+          {m.formulario ? m.formulario({
+            inicial: edicion.item as never, operacionInicial: edicion.item ? undefined : nuevoCon?.operacion,
+            textoEnviar: edicion.item ? "Guardar cambios" : `Registrar ${m.singular}`,
+            alEnviar: guardar, alCancelar: () => setEdicion(null),
+          }) : (
+            <Formulario campos={m.campos} inicial={edicion.item} fuentes={fuentes} alias={m.alias}
+              textoEnviar={edicion.item ? "Guardar cambios" : `Registrar ${m.singular}`}
+              alEnviar={guardar} alCancelar={() => setEdicion(null)} />
+          )}
         </Modal>
       ) : null}
     </>

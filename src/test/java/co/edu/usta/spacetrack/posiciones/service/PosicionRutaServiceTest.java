@@ -46,7 +46,7 @@ class PosicionRutaServiceTest {
     private final PosicionRutaService posicionService = new PosicionRutaService(posicionRepository, rutaRepository,
             RELOJ);
     private final GeneradorPosiciones generador = new GeneradorPosiciones(posicionRepository, rutaRepository,
-            entregaRepository, simulador, RELOJ);
+            entregaRepository, simulador, new co.edu.usta.spacetrack.rutas.service.DetectorDesvio(posicionRepository, simulador, 0.5, 2.0, 30), RELOJ);
 
     @Test
     void registraPosicionManualEnRutaEnCurso() {

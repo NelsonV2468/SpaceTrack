@@ -39,6 +39,7 @@ class CargaDatosDemoTest {
     private final CargaDatosDemo carga = new CargaDatosDemo(clienteRepository, clienteService, mock(OperacionService.class),
             mock(NecesidadClienteService.class), mock(VehiculoService.class), mock(ConductorService.class),
             mock(ZonaService.class), mock(RutaService.class), mock(EntregaService.class),
+            mock(co.edu.usta.spacetrack.posiciones.service.PosicionRutaService.class),
             Clock.system(ZoneId.of("America/Bogota")), transacciones, 10);
 
     CargaDatosDemoTest() {

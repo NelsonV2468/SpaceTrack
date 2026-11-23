@@ -19,7 +19,9 @@ import co.edu.usta.spacetrack.rutas.dto.RutaRequest;
 import co.edu.usta.spacetrack.rutas.service.RutaService;
 import co.edu.usta.spacetrack.vehiculos.dto.VehiculoRequest;
 import co.edu.usta.spacetrack.vehiculos.service.VehiculoService;
-import co.edu.usta.spacetrack.zonas.dto.ZonaRequest;
+import co.edu.usta.spacetrack.posiciones.dto.PosicionRutaRequest;
+import co.edu.usta.spacetrack.posiciones.service.PosicionRutaService;
+import co.edu.usta.spacetrack.zonas.domain.Localidad;
 import co.edu.usta.spacetrack.zonas.service.ZonaService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +66,9 @@ public class CargaDatosDemo implements ApplicationRunner {
     /** Ultimo instante del dia, con segundos, para que una ruta iniciada a las 23:59:30 siga dentro de la franja. */
     static final LocalTime FIN_DEL_DIA = LocalTime.of(23, 59, 59);
     static final int INTENTOS = 2;
+    /** Posicion reportada por el vehiculo desviado (occidente de Suba, lejos de su recorrido). */
+    static final double LATITUD_DESVIO = 4.7650;
+    static final double LONGITUD_DESVIO = -74.1300;
 
     private final ClienteRepository clienteRepository;
     private final ClienteService clienteService;
@@ -74,6 +79,7 @@ public class CargaDatosDemo implements ApplicationRunner {
     private final ZonaService zonaService;
     private final RutaService rutaService;
     private final EntregaService entregaService;
+    private final PosicionRutaService posicionService;
     private final Clock reloj;
     private final long minutosPorEntrega;
     private final TransactionTemplate transaccion;
@@ -81,7 +87,7 @@ public class CargaDatosDemo implements ApplicationRunner {
     public CargaDatosDemo(ClienteRepository clienteRepository, ClienteService clienteService, OperacionService operacionService,
                           NecesidadClienteService necesidadService, VehiculoService vehiculoService,
                           ConductorService conductorService, ZonaService zonaService, RutaService rutaService,
-                          EntregaService entregaService, Clock reloj, PlatformTransactionManager transacciones,
+                          EntregaService entregaService, PosicionRutaService posicionService, Clock reloj, PlatformTransactionManager transacciones,
                           @Value("${spacetrack.alertas.minutos-por-entrega:10}") long minutosPorEntrega) {
         this.clienteRepository = clienteRepository;
         this.clienteService = clienteService;
@@ -92,6 +98,7 @@ public class CargaDatosDemo implements ApplicationRunner {
         this.zonaService = zonaService;
         this.rutaService = rutaService;
         this.entregaService = entregaService;
+        this.posicionService = posicionService;
         this.reloj = reloj;
         this.minutosPorEntrega = minutosPorEntrega;
         this.transaccion = new TransactionTemplate(transacciones);
@@ -110,7 +117,7 @@ public class CargaDatosDemo implements ApplicationRunner {
                     return true;
                 });
                 if (Boolean.TRUE.equals(cargado)) {
-                    log.info("Perfil demo: datos de ejemplo cargados (1 cliente, 1 operacion, 5 vehiculos, 5 conductores, 5 zonas, 5 rutas)");
+                    log.info("Perfil demo: datos de ejemplo cargados (1 cliente, 1 operacion, 5 vehiculos, 5 conductores, 5 rutas en 5 localidades)");
                 } else {
                     log.info("Perfil demo: ya existen clientes registrados; no se cargan datos de ejemplo");
                 }
@@ -165,11 +172,12 @@ public class CargaDatosDemo implements ApplicationRunner {
                     hoy.plusYears(1).plusMonths(i * 4L), true)).id();
         }
 
-        Long chapinero = zona("Z-DEMO-CHA", "Chapinero comercial", "Chapinero");
-        Long kennedy = zona("Z-DEMO-KEN", "Kennedy central", "Kennedy");
-        Long suba = zona("Z-DEMO-SUB", "Suba norte", "Suba");
-        Long engativa = zona("Z-DEMO-ENG", "Engativá occidente", "Engativá");
-        Long usaquen = zona("Z-DEMO-USA", "Usaquén residencial", "Usaquén");
+        // Las zonas son las localidades de Bogota que ya estan guardadas en la base.
+        Long chapinero = zona(Localidad.CHAPINERO);
+        Long kennedy = zona(Localidad.KENNEDY);
+        Long suba = zona(Localidad.SUBA);
+        Long engativa = zona(Localidad.ENGATIVA);
+        Long usaquen = zona(Localidad.USAQUEN);
 
         // Atrasada: le faltan mas entregas de las que caben en lo que queda de la franja (alerta critica de ON-4).
         long minutosRestantes = Duration.between(ahora, horaFin).toMinutes();
@@ -177,7 +185,7 @@ public class CargaDatosDemo implements ApplicationRunner {
 
         Long alDia = ruta("R-DEMO-01", "Tiendas de Chapinero (al día)", chapinero, operacionId, "Cra 7 # 60-15", 14.5, 12, vehiculos[0], conductores[0]);
         Long atrasada = ruta("R-DEMO-02", "Supermercados de Kennedy (atrasada)", kennedy, operacionId, "Av. 1 de Mayo # 72-30", 18.0, programadasAtrasada, vehiculos[1], conductores[1]);
-        Long casiCompleta = ruta("R-DEMO-03", "Minimercados de Suba (casi completa)", suba, operacionId, "Cl 145 # 91-19", 21.3, 10, vehiculos[2], conductores[2]);
+        Long casiCompleta = ruta("R-DEMO-03", "Minimercados de Suba (desviada)", suba, operacionId, "Cl 145 # 91-19", 21.3, 10, vehiculos[2], conductores[2]);
         ruta("R-DEMO-04", "Panaderías de Engativá (pendiente)", engativa, operacionId, "Cl 72 # 110-40", 16.8, 8, vehiculos[3], conductores[3]);
         Long finalizada = ruta("R-DEMO-05", "Droguerías de Usaquén (finalizada)", usaquen, operacionId, "Cra 15 # 124-30", 12.2, 8, vehiculos[4], conductores[4]);
 
@@ -191,6 +199,8 @@ public class CargaDatosDemo implements ApplicationRunner {
         entregas(atrasada, "KEN", 2, 1, "Dirección incompleta; no se ubicó el local");
         rutaService.iniciar(casiCompleta);
         entregas(casiCompleta, "SUB", 9, 0, null);
+        // El vehiculo de Suba reporta una posicion lejos de su recorrido: genera la alerta de desvio de ruta.
+        posicionService.registrar(new PosicionRutaRequest(casiCompleta, LATITUD_DESVIO, LONGITUD_DESVIO, 18));
     }
 
     /** La franja empieza a las 06:00, o antes si la demo arranca de madrugada (la ruta debe poder iniciar ya). */
@@ -211,9 +221,8 @@ public class CargaDatosDemo implements ApplicationRunner {
         return conMargen.isAfter(FIN_TIPICO) ? conMargen : FIN_TIPICO;
     }
 
-    private Long zona(String codigo, String nombre, String localidad) {
-        return zonaService.crear(new ZonaRequest(codigo, nombre, localidad,
-                "Zona de entregas refrigeradas en " + localidad, true)).id();
+    private Long zona(Localidad localidad) {
+        return zonaService.zonaDeLocalidad(localidad).getId();
     }
 
     private Long ruta(String codigo, String nombre, Long zonaId, Long operacionId, String destino, double km,

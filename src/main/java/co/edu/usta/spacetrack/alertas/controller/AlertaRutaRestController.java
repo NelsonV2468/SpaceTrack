@@ -2,7 +2,6 @@ package co.edu.usta.spacetrack.alertas.controller;
 
 import co.edu.usta.spacetrack.alertas.dto.AlertaRutaResponse;
 import co.edu.usta.spacetrack.alertas.service.AlertaRutaService;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,9 +24,9 @@ public class AlertaRutaRestController {
         return alertaService.alertasActivas();
     }
 
-    // 204 cuando la ruta existe pero no tiene alerta.
+    // Lista vacia cuando la ruta existe pero no tiene alertas; 404 si la ruta no existe.
     @GetMapping("/{rutaId}")
-    public ResponseEntity<AlertaRutaResponse> deRuta(@PathVariable Long rutaId) {
-        return alertaService.alertaDeRuta(rutaId).map(ResponseEntity::ok).orElse(ResponseEntity.noContent().build());
+    public List<AlertaRutaResponse> deRuta(@PathVariable Long rutaId) {
+        return alertaService.alertasDeRuta(rutaId);
     }
 }
