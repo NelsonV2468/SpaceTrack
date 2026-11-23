@@ -189,6 +189,10 @@ td.derecha, th.derecha { text-align: right; }
 .formulario { display: grid; gap: 16px 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .formulario .ancho, .formulario .aviso, .formulario .acciones-form { grid-column: 1 / -1; }
 .formulario .aviso { margin: 0; }
+/* Resumen del contrato elegido en el formulario de rutas. */
+.aviso.resumen-operacion { background: var(--neutral-soft); color: inherit; display: block; padding: 4px 16px 10px; }
+.resumen-operacion .ficha div { padding: 8px 0; }
+.resumen-operacion .aviso { margin-top: 10px; }
 .campo { align-content: start; display: grid; gap: 6px; }
 label { color: var(--ink-2); font-size: 13px; font-weight: 500; }
 input, select, textarea { background: var(--paper); border: 1px solid var(--line-2); border-radius: var(--radio-sm); min-height: 38px; padding: 8px 12px; width: 100%;

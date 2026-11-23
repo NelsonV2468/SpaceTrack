@@ -96,6 +96,56 @@ public class SimuladorUbicacion {
                 registradas, programadas, Math.round(progreso * 1000) / 1000.0, velocidad, descripcion, ahora);
     }
 
+    /**
+     * Recorrido planeado de la ruta: centro de distribucion, paradas y destino, en orden.
+     * Es el mismo que dibuja el mapa (la semilla es el codigo de la ruta).
+     */
+    public List<double[]> recorridoPlaneado(Ruta ruta) {
+        Random aleatorio = new Random(ruta.getCodigo() == null ? 0 : ruta.getCodigo().hashCode());
+        double[] centro = centroDeZona(ruta.getZona() == null ? null : ruta.getZona().getLocalidad());
+        int programadas = ruta.getNumeroEntregasProgramadas() == null ? 0 : ruta.getNumeroEntregasProgramadas();
+        List<double[]> recorrido = new ArrayList<>();
+        recorrido.add(new double[]{CEDI_LATITUD, CEDI_LONGITUD});
+        recorrido.addAll(generarParadas(aleatorio, centro, programadas));
+        recorrido.add(puntoDestino(centro));
+        return recorrido;
+    }
+
+    /** Distancia aproximada en km entre un punto y el tramo mas cercano del recorrido. */
+    public static double distanciaAlRecorridoKm(List<double[]> recorrido, double latitud, double longitud) {
+        if (recorrido.isEmpty()) {
+            return Double.MAX_VALUE;
+        }
+        // Proyeccion local plana: a la escala de Bogota el error es despreciable.
+        double kmPorGradoLat = 110.57;
+        double kmPorGradoLon = 111.32 * Math.cos(Math.toRadians(latitud));
+        double px = longitud * kmPorGradoLon, py = latitud * kmPorGradoLat;
+        double minimo = Double.MAX_VALUE;
+        for (int i = 0; i < recorrido.size(); i++) {
+            double[] a = recorrido.get(i);
+            double[] b = i + 1 < recorrido.size() ? recorrido.get(i + 1) : a;
+            double ax = a[1] * kmPorGradoLon, ay = a[0] * kmPorGradoLat;
+            double bx = b[1] * kmPorGradoLon, by = b[0] * kmPorGradoLat;
+            double dx = bx - ax, dy = by - ay;
+            double largo2 = dx * dx + dy * dy;
+            double t = largo2 == 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / largo2));
+            minimo = Math.min(minimo, Math.hypot(px - (ax + t * dx), py - (ay + t * dy)));
+        }
+        return minimo;
+    }
+
+    /**
+     * Distancia aproximada del recorrido: trayecto por vias desde el centro de distribucion hasta la localidad
+     * (1,4 veces la linea recta) mas el reparto entre paradas. Se usa cuando no se indica la distancia de la ruta.
+     */
+    public static double distanciaEstimadaKm(String localidad, int entregas) {
+        double[] centro = centroDeZona(localidad);
+        double kmPorGradoLon = 111.32 * Math.cos(Math.toRadians(CEDI_LATITUD));
+        double rectaKm = Math.hypot((centro[0] - CEDI_LATITUD) * 110.57, (centro[1] - CEDI_LONGITUD) * kmPorGradoLon);
+        double repartoKm = Math.min(Math.max(entregas, 1) * 0.4, 25);
+        return Math.max(1.0, Math.round((rectaKm * 1.4 + repartoKm) * 10) / 10.0);
+    }
+
     static double[] centroDeZona(String localidad) {
         Optional<Localidad> conocida = Localidad.buscar(localidad);
         if (conocida.isPresent()) {

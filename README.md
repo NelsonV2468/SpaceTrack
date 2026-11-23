@@ -1,6 +1,6 @@
 # SpaceTrack
 
-Sistema de gestion de rutas de distribucion para **City Urban Bogota**. Centraliza clientes, contratos (operaciones), necesidades del cliente, flota, conductores, zonas, rutas, entregas y el monitoreo simulado de los vehiculos en un plano de Bogota.
+Sistema de gestion de rutas de distribucion para **City Urban Bogota**. Centraliza clientes, contratos (operaciones), necesidades del cliente, flota, conductores, rutas por localidad, entregas y el monitoreo simulado de los vehiculos en un plano de Bogota.
 
 ## Tecnologias
 
@@ -84,8 +84,8 @@ Al arrancar se carga el caso de ejemplo del acta (distribucion con cadena de fri
 | Operacion | `CT-DEMO-001`, refrigerada, todos los dias, 5 vehiculos, 1.200 entregas, vigente desde hace 30 dias y por 6 meses |
 | Necesidad | 5 furgones refrigerados de 1.500 kg; franja de 06:00 a 20:00, ampliada si la demo arranca de madrugada o de noche para que las rutas puedan iniciar |
 | Flota | 5 furgones refrigerados (`DMO101` a `DMO105`) y 5 conductores con licencia vigente |
-| Zonas | Chapinero, Kennedy, Suba, Engativa y Usaquen |
-| Rutas | `R-DEMO-01` en curso y al dia · `R-DEMO-02` en curso y atrasada (genera la alerta critica) · `R-DEMO-03` en curso con 9 de 10 entregas · `R-DEMO-04` pendiente · `R-DEMO-05` finalizada |
+| Zonas | Las rutas usan las localidades de Chapinero, Kennedy, Suba, Engativa y Usaquen |
+| Rutas | `R-DEMO-01` en curso y al dia · `R-DEMO-02` en curso y atrasada (genera la alerta critica) · `R-DEMO-03` en curso con 9 de 10 entregas y su vehiculo reportado fuera de ruta (genera la alerta de desvio) · `R-DEMO-04` pendiente · `R-DEMO-05` finalizada |
 
 - Todo se crea con los servicios de cada modulo, asi que se aplican las mismas reglas de negocio que en el panel; la carga va en una sola transaccion y si una regla la rechaza no queda nada a medias.
 - Solo con `demo` la aplicacion usa una base H2 en memoria: cada arranque empieza limpio y los datos se pierden al detenerla.
@@ -119,10 +119,11 @@ Al arrancar se carga el caso de ejemplo del acta (distribucion con cadena de fri
 - **Los dias de una necesidad deben estar dentro de los dias de operacion del contrato.**
 
 ### Zonas
-- Codigo y nombre unicos.
-- **La localidad debe pertenecer al catalogo** (las 19 localidades urbanas de Bogota mas Soacha, Mosquera y Funza), para que la zona siempre se pueda ubicar en el mapa. Se acepta sin tildes ni mayusculas y se guarda con su nombre oficial. El catalogo se consulta en `GET /api/zonas/localidades`.
+- **Las zonas ya no se registran a mano**: son las 19 localidades de Bogota (codigos `LOC-01` Usaquen a `LOC-19` Ciudad Bolivar). Al arrancar, la aplicacion las guarda en la base si faltan (es idempotente) y el formulario de rutas solo ofrece elegir una en una lista desplegable.
+- Las zonas registradas antes de este cambio se conservan para no romper sus rutas, pero se marcan con `catalogo: false` y no se ofrecen en rutas nuevas.
 
 ### Rutas
+- **Registro guiado**: en el formulario se elige la operacion (contrato) y la zona; el resto se completa solo con los datos del contrato: codigo sugerido, nombre, destino y entregas programadas (las que le corresponden a un vehiculo, sin superar el cupo disponible). Se muestra un resumen del contrato (cliente, vigencia, dias, cadena de frio y cupo). Todo se puede ajustar antes de guardar. El usuario no indica la distancia: el sistema la calcula internamente desde el centro de distribucion hasta la localidad (en el API `distanciaEstimadaKm` es opcional). En Operaciones, el boton **Crear ruta** abre el formulario con el contrato ya elegido.
 - Ciclo de vida: `PENDIENTE -> EN_CURSO -> FINALIZADA`. Solo se eliminan rutas PENDIENTES y no se editan rutas FINALIZADAS.
 - **Crear una ruta** exige que la operacion este ACTIVA, que su cliente este activo y que hoy este dentro de la vigencia (`fechaInicio` a `fechaFin`).
 - **Cupo de entregas**: la suma de entregas programadas de todas las rutas de un contrato no puede superar las entregas esperadas por el contrato.
@@ -149,6 +150,12 @@ Al arrancar se carga el caso de ejemplo del acta (distribucion con cadena de fri
 - **Pantalla de alertas** (`/panel/alertas/`, menu Ejecucion > Alertas): indicadores de alertas criticas, advertencias y entregas en riesgo, tabla filtrable por nivel con enlace al detalle de cada ruta. El menu muestra un contador (rojo si hay criticas).
 - El tablero del panel muestra las alertas vigentes (criticas primero, con enlace a la pantalla) y el detalle de la ruta muestra la suya; todo se actualiza cada 30 segundos.
 
+### Alerta de desvio de ruta
+- Si el vehiculo de una ruta EN_CURSO reporta su posicion (`POST /api/posiciones`, por GPS o registro manual), se compara con el recorrido planeado (centro de distribucion, paradas y destino).
+- **Advertencia**: el vehiculo esta a mas de `spacetrack.alertas.desvio-km` (0,5 km) del recorrido. **Critica**: a mas de `spacetrack.alertas.desvio-critico-km` (2 km).
+- El reporte cuenta durante `spacetrack.posiciones.vigencia-reporte-minutos` (30 por defecto; todo el dia en el perfil demo). Mientras este vigente el mapa muestra la posicion reportada (no la simulada) y no se generan posiciones simuladas para esa ruta.
+- Se muestra en la pantalla de alertas (filtro *Vehiculos fuera de ruta*), el tablero, el detalle de la ruta y el monitoreo (aviso rojo, etiqueta *Fuera de ruta* y el vehiculo resaltado en el mapa).
+
 ### Posiciones
 - Se genera una posicion simulada de cada ruta EN_CURSO cada `spacetrack.simulacion.intervalo-segundos` (10 por defecto).
 - Se aceptan posiciones manuales por API solo para rutas existentes y EN_CURSO.
@@ -173,9 +180,9 @@ Con el login activo (perfil `prod`): todos los roles pueden consultar (GET); ADM
 | GET, PUT, DELETE | `/api/operaciones/{id}` | Consulta, actualiza o elimina un contrato |
 | GET, POST | `/api/necesidades` (`?operacionId=`) | Lista o registra necesidades del cliente |
 | GET, PUT, DELETE | `/api/necesidades/{id}` | Consulta, actualiza o elimina una necesidad |
-| GET, POST | `/api/zonas` | Lista o registra zonas |
+| GET | `/api/zonas` | Lista las zonas (localidades de Bogota) |
 | GET | `/api/zonas/localidades` | Catalogo de localidades con sus coordenadas |
-| GET, PUT, DELETE | `/api/zonas/{id}` | Consulta, actualiza o elimina una zona |
+| GET | `/api/zonas/{id}` | Consulta una zona |
 | GET, POST | `/api/rutas` (`?estado=PENDIENTE\|EN_CURSO\|FINALIZADA`) | Lista o registra rutas |
 | GET, PUT, DELETE | `/api/rutas/{id}` | Consulta, actualiza o elimina una ruta |
 | PATCH | `/api/rutas/{id}/asignacion` | Asigna vehiculo y conductor (`{"vehiculoId":1,"conductorId":1}`) |
@@ -184,8 +191,8 @@ Con el login activo (perfil `prod`): todos los roles pueden consultar (GET); ADM
 | GET | `/api/rutas/{id}/ubicacion`, `/api/rutas/ubicaciones` | Ubicacion simulada del vehiculo |
 | GET, POST | `/api/entregas` (`?rutaId=`) | Lista o registra entregas |
 | DELETE | `/api/entregas/{id}` | Corrige (elimina) una entrega |
-| GET | `/api/alertas/rutas` | Alertas vigentes de rutas proximas a finalizar sin completar entregas |
-| GET | `/api/alertas/rutas/{rutaId}` | Alerta de una ruta (204 si no tiene) |
+| GET | `/api/alertas/rutas` | Alertas vigentes: franja horaria (`FRANJA_HORARIA`) y desvio de ruta (`DESVIO_RUTA`) |
+| GET | `/api/alertas/rutas/{rutaId}` | Alertas de una ruta (lista vacia si no tiene) |
 | GET | `/api/cierres` | Historial de cierres diarios |
 | GET | `/api/cierres/{fecha}` | Cierre guardado de la fecha (`2026-11-16`), o la vista previa si el dia sigue abierto |
 | POST | `/api/cierres` | Cierra un dia (`{"fecha":"2026-11-16","observaciones":"..."}`; solo ADMIN u OPERADOR) |

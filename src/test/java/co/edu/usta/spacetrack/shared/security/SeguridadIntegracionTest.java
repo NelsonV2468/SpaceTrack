@@ -52,7 +52,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class SeguridadIntegracionTest {
 
-    private static final String ZONA = "{\"codigo\":\"Z-%s\",\"nombre\":\"Zona %s\",\"localidad\":\"Suba\",\"activa\":true}";
+    private static final String CLIENTE = "{\"razonSocial\":\"Cliente %s\",\"nit\":\"%s\",\"nombreContacto\":\"Ana\","
+            + "\"correoContacto\":\"ana@cliente.co\",\"telefonoContacto\":\"6015550000\",\"direccion\":\"Cl 1 # 2-3\",\"activo\":true}";
 
     @Autowired
     private MockMvc mvc;
@@ -188,7 +189,7 @@ class SeguridadIntegracionTest {
     void consultaSoloPuedeLeer() throws Exception {
         RequestPostProcessor consulta = como(Rol.CONSULTA);
         mvc.perform(get("/api/zonas").with(consulta)).andExpect(status().isOk());
-        mvc.perform(post("/api/zonas").with(consulta).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(zona()))
+        mvc.perform(post("/api/clientes").with(consulta).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(cliente()))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.mensaje", containsString("rol")));
         mvc.perform(get("/api/usuarios").with(consulta)).andExpect(status().isForbidden());
@@ -197,9 +198,9 @@ class SeguridadIntegracionTest {
     @Test
     void operadorCreaPeroNoEliminaNiGestionaUsuarios() throws Exception {
         RequestPostProcessor operador = como(Rol.OPERADOR);
-        mvc.perform(post("/api/zonas").with(operador).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(zona()))
+        mvc.perform(post("/api/clientes").with(operador).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(cliente()))
                 .andExpect(status().isCreated());
-        mvc.perform(delete("/api/zonas/999").with(operador).with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/clientes/999").with(operador).with(csrf())).andExpect(status().isForbidden());
         mvc.perform(post("/clientes/1/eliminar").with(operador).with(csrf())).andExpect(status().isForbidden());
         mvc.perform(patch("/api/usuarios/1/rol").with(operador).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content("{\"rol\":\"ADMIN\"}")).andExpect(status().isForbidden());
@@ -246,7 +247,7 @@ class SeguridadIntegracionTest {
 
     @Test
     void sinCsrfNoSeModificanDatosAunqueHayaSesion() throws Exception {
-        mvc.perform(post("/api/zonas").with(como(Rol.ADMIN)).contentType(MediaType.APPLICATION_JSON).content(zona()))
+        mvc.perform(post("/api/clientes").with(como(Rol.ADMIN)).contentType(MediaType.APPLICATION_JSON).content(cliente()))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.mensaje", containsString("token de seguridad")));
     }
@@ -256,7 +257,7 @@ class SeguridadIntegracionTest {
         RequestPostProcessor admin = como(Rol.ADMIN);
         Usuario pendiente = usuarios.save(new Usuario("p-" + UUID.randomUUID(), "pend@correo.com", "Pend", Rol.PENDIENTE));
 
-        mvc.perform(delete("/api/zonas/999").with(admin).with(csrf())).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/clientes/999").with(admin).with(csrf())).andExpect(status().isNotFound());
         mvc.perform(patch("/api/usuarios/" + pendiente.getId() + "/rol").with(admin).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"rol\":\"CONSULTA\"}"))
                 .andExpect(status().isOk())
@@ -270,8 +271,8 @@ class SeguridadIntegracionTest {
 
         usuario.setRol(Rol.CONSULTA);
         usuarios.save(usuario);
-        mvc.perform(post("/api/zonas").with(authentication(sesionVieja.comoAutenticacion())).with(csrf())
-                .contentType(MediaType.APPLICATION_JSON).content(zona())).andExpect(status().isForbidden());
+        mvc.perform(post("/api/clientes").with(authentication(sesionVieja.comoAutenticacion())).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(cliente())).andExpect(status().isForbidden());
 
         usuario.setRol(Rol.PENDIENTE);
         usuarios.save(usuario);
@@ -283,8 +284,8 @@ class SeguridadIntegracionTest {
         return authentication(UsuarioSesion.desde(usuario).comoAutenticacion());
     }
 
-    private static String zona() {
-        String sufijo = UUID.randomUUID().toString().substring(0, 8);
-        return ZONA.formatted(sufijo, sufijo);
+    private static String cliente() {
+        String nit = String.valueOf(1_000_000_000L + (long) (Math.random() * 8_999_999_999L)).substring(0, 10);
+        return CLIENTE.formatted(UUID.randomUUID().toString().substring(0, 8), nit);
     }
 }

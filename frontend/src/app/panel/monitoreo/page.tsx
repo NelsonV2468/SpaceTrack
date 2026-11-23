@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { MapaBogota } from "@/components/MapaBogota";
-import { Encabezado, EstadoRutaEtiqueta, Panel, Vacio } from "@/components/ui";
+import { Encabezado, Etiqueta, EstadoRutaEtiqueta, Panel, Vacio } from "@/components/ui";
 import { REFRESCO_MAPA_MS } from "@/lib/formato";
 import { useRecurso } from "@/lib/hooks";
 import { colorRuta, mensajeSinUbicacion, tieneUbicacion } from "@/lib/mapa";
@@ -20,6 +20,7 @@ export default function Monitoreo() {
   useEffect(() => { if (datos) setActualizado(new Date().toLocaleTimeString("es-CO")); }, [datos]);
   const ubicaciones = useMemo(() => datos ?? [], [datos]);
   const colores = useMemo(() => Object.fromEntries(ubicaciones.map((u, i) => [u.rutaId, colorRuta(i)])), [ubicaciones]);
+  const desviadas = ubicaciones.filter((u) => u.fueraDeRuta);
   const visibles = ubicaciones.filter((u) => filtro === "TODAS" || u.estado === "EN_CURSO" || (filtro === "ACTIVAS" && u.estado === "PENDIENTE"));
   const seleccionVigente = seleccion !== null && visibles.some((u) => u.rutaId === seleccion && tieneUbicacion(u)) ? seleccion : null;
   const opciones = useMemo(() => ({ seleccion: seleccionVigente, colores }), [seleccionVigente, colores]);
@@ -36,6 +37,14 @@ export default function Monitoreo() {
           </select>
         } />
 
+      {desviadas.length ? (
+        <div className="aviso error" role="alert">
+          <strong>{desviadas.length === 1 ? "Vehículo fuera de ruta" : `${desviadas.length} vehículos fuera de ruta`}</strong>
+          <span>{desviadas.map((u) => `${u.placaVehiculo ?? u.codigo} (${u.codigo}) a ${(u.distanciaDesvioKm ?? 0).toLocaleString("es-CO")} km de su recorrido`).join(" · ")}.</span>
+          <Link className="enlace" href="/panel/alertas/">Ver alertas</Link>
+        </div>
+      ) : null}
+
       <div className="monitoreo">
         <Panel titulo="Plano de Bogotá D.C." extra={<span className="total num">{error ?? (actualizado ? `Actualizado ${actualizado}` : "")}</span>}>
           <MapaBogota ubicaciones={visibles} opciones={opciones} alSeleccionar={alternar} />
@@ -45,6 +54,7 @@ export default function Monitoreo() {
               <span><i style={{ background: "#0f7b4f", borderRadius: "50%" }} />Entregada</span>
               <span><i style={{ background: "#c0392b", borderRadius: "50%" }} />No entregada</span>
               <span><i style={{ background: "#fff", border: "1.5px solid #6b778c", borderRadius: "50%" }} />Pendiente</span>
+              <span><i style={{ background: "#fff", border: "2px dashed #c0392b", borderRadius: "50%" }} />Fuera de ruta</span>
             </div>
           </div>
         </Panel>
@@ -58,7 +68,7 @@ export default function Monitoreo() {
                   onClick={sinUbicacion ? undefined : () => alternar(u.rutaId)}>
                   <div className="fila">
                     <strong>{sinUbicacion ? null : <span className="color" style={{ background: colores[u.rutaId], marginRight: 8 }} />}{u.placaVehiculo || "Sin vehículo"}</strong>
-                    <EstadoRutaEtiqueta estado={u.estado} />
+                    {u.fueraDeRuta ? <Etiqueta tono="danger">Fuera de ruta</Etiqueta> : <EstadoRutaEtiqueta estado={u.estado} />}
                   </div>
                   <div className="desc">{u.codigo} · {u.nombre}{u.nombreConductor ? ` · ${u.nombreConductor}` : ""}</div>
                   <div className="desc">{sinUbicacion || `${u.descripcionPosicion}${u.velocidadKmh ? ` · ${u.velocidadKmh} km/h` : ""}`}</div>

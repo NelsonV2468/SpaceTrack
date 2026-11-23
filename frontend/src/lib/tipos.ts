@@ -97,6 +97,8 @@ export interface Zona {
   localidad: string;
   descripcion: string | null;
   activa: boolean;
+  /** true para las localidades de Bogota predefinidas; false para zonas antiguas registradas a mano. */
+  catalogo: boolean;
 }
 
 export interface Ruta {
@@ -110,7 +112,6 @@ export interface Ruta {
   razonSocialCliente?: string;
   puntoOrigen: string;
   puntoDestino: string;
-  distanciaEstimadaKm: number;
   numeroEntregasProgramadas: number;
   entregasRealizadas: number;
   entregasNoRealizadas: number;
@@ -166,10 +167,17 @@ export interface Ubicacion {
   entregasRegistradas: number;
   entregasProgramadas: number;
   calculadoEn: string;
+  /** El vehiculo reporto su posicion (GPS o registro manual) y se muestra esa en lugar de la simulada. */
+  posicionReportada?: boolean;
+  /** La posicion reportada se aleja del recorrido planeado. */
+  fueraDeRuta?: boolean;
+  distanciaDesvioKm?: number | null;
 }
 
 /** ON-4: ruta EN_CURSO proxima a terminar su franja horaria sin completar entregas. */
 export type NivelAlerta = "ADVERTENCIA" | "CRITICA";
+/** FRANJA_HORARIA: poco tiempo para las entregas pendientes. DESVIO_RUTA: el vehiculo se salio del recorrido. */
+export type TipoAlerta = "FRANJA_HORARIA" | "DESVIO_RUTA";
 
 export interface AlertaRuta {
   rutaId: number;
@@ -190,6 +198,9 @@ export interface AlertaRuta {
   minutosEstimadosPendientes: number;
   mensaje: string;
   calculadoEn: string;
+  tipo: TipoAlerta;
+  /** Solo en alertas de desvio: km entre el vehiculo y su recorrido. */
+  distanciaDesvioKm: number | null;
 }
 
 /** ON-20: ruta dentro del resumen o del cierre de un dia. */
