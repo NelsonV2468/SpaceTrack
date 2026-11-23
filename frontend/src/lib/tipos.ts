@@ -73,6 +73,23 @@ export interface Operacion {
   estado: EstadoOperacion;
 }
 
+/** Operacion con su necesidad principal: lo que se ve y se edita en la pantalla Operaciones. */
+export interface PlanOperacion extends Omit<Operacion, "diasOperacion"> {
+  /** Texto del contrato, por ejemplo "Lunes a viernes". */
+  diasOperacionTexto: string;
+  diasOperacion: DiaSemana[];
+  necesidadId: number | null;
+  tipoVehiculo: string | null;
+  cantidadVehiculos: number;
+  capacidadMinimaKg: number | null;
+  horaInicio: string | null;
+  horaFin: string | null;
+  observaciones: string | null;
+  vehiculosDisponibles: number | null;
+  flotaSuficiente: boolean | null;
+  necesidadesAdicionales: number;
+}
+
 export interface Necesidad {
   id: number;
   operacionId: number;

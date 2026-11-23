@@ -21,7 +21,6 @@ export const MENU: { grupo: string; items: ItemMenu[] }[] = [
     { href: "/panel/operaciones/", texto: "Operaciones", icono: "operaciones" },
   ] },
   { grupo: "Planeación", items: [
-    { href: "/panel/necesidades/", texto: "Necesidades", icono: "necesidades" },
     { href: "/panel/rutas/", texto: "Rutas", icono: "rutas" },
   ] },
   { grupo: "Ejecución", items: [

@@ -67,8 +67,8 @@ export default function Tablero() {
 
       {sinFlota ? (
         <div className="aviso warn">
-          <span>{sinFlota} necesidad(es) de cliente no tienen suficientes vehículos compatibles en la flota.</span>
-          <Link className="enlace" href="/panel/necesidades/">Revisar</Link>
+          <span>{sinFlota === 1 ? "1 operación no tiene" : `${sinFlota} operaciones no tienen`} suficientes vehículos compatibles en la flota.</span>
+          <Link className="enlace" href="/panel/operaciones/">Revisar</Link>
         </div>
       ) : null}
 

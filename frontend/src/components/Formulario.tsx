@@ -9,7 +9,8 @@ type Registro = Record<string, unknown> & { id?: number };
 export interface CampoDef {
   nombre: string;
   etiqueta: string;
-  tipo?: "text" | "email" | "number" | "date" | "time" | "check" | "select" | "relacion" | "dias" | "textarea";
+  /** "seccion": titulo que agrupa los campos siguientes; no envia ningun valor. */
+  tipo?: "text" | "email" | "number" | "date" | "time" | "check" | "select" | "relacion" | "dias" | "textarea" | "seccion";
   /** Para "select": valores, o pares [valor, texto]. */
   opciones?: (string | [string, string])[];
   /** Para "select": catalogo que entrega el servidor (p. ej. localidades) y el texto de cada elemento. */
@@ -47,6 +48,7 @@ function leer(form: HTMLFormElement, campos: CampoDef[]): Record<string, unknown
   const datos = new FormData(form);
   const cuerpo: Record<string, unknown> = {};
   for (const campo of campos) {
+    if (campo.tipo === "seccion") continue;
     if (campo.tipo === "check") cuerpo[campo.nombre] = datos.get(campo.nombre) === "on";
     else if (campo.tipo === "dias") cuerpo[campo.nombre] = datos.getAll(campo.nombre);
     else {
@@ -109,6 +111,15 @@ function Campo({ campo, valor, item, opcionesRelacion, error }: {
 }) {
   const id = `f-${campo.nombre}`;
   const clase = `campo${campo.ancho ? " ancho" : ""}${error ? " con-error" : ""}`;
+
+  if (campo.tipo === "seccion") {
+    return (
+      <div className="seccion-form">
+        <h3>{campo.etiqueta}</h3>
+        {campo.ayuda ? <span className="ayuda">{campo.ayuda}</span> : null}
+      </div>
+    );
+  }
 
   if (campo.tipo === "check") {
     return (

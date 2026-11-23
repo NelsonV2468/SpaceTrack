@@ -21,6 +21,7 @@ public interface RutaRepository extends JpaRepository<Ruta, Long> {
     boolean existsByConductorIdAndEstadoAndIdNot(Long conductorId, EstadoRuta estado, Long id);
 
     boolean existsByOperacionIdAndEstado(Long operacionId, EstadoRuta estado);
+    boolean existsByOperacionId(Long operacionId);
 
     // ON-20 cierre diario: rutas finalizadas dentro de un dia y rutas que siguen abiertas desde ese dia o antes.
     List<Ruta> findByEstadoAndFechaFinRealGreaterThanEqualAndFechaFinRealLessThanOrderByCodigoAsc(

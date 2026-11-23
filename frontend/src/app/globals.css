@@ -188,6 +188,10 @@ td.derecha, th.derecha { text-align: right; }
 /* ---------- Formularios ---------- */
 .formulario { display: grid; gap: 16px 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .formulario .ancho, .formulario .aviso, .formulario .acciones-form { grid-column: 1 / -1; }
+/* Titulo de cada bloque de un formulario largo (p. ej. Operaciones: contrato, horario y vehiculos). */
+.seccion-form { border-bottom: 1px solid var(--line); grid-column: 1 / -1; margin-top: 6px; padding-bottom: 6px; }
+.seccion-form h3 { font-size: 14px; font-weight: 600; margin: 0; }
+.seccion-form:first-of-type { margin-top: 0; }
 .formulario .aviso { margin: 0; }
 /* Resumen del contrato elegido en el formulario de rutas. */
 .aviso.resumen-operacion { background: var(--neutral-soft); color: inherit; display: block; padding: 4px 16px 10px; }
