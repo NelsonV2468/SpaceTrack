@@ -10,7 +10,6 @@ import co.edu.usta.spacetrack.operaciones.domain.Operacion;
 import co.edu.usta.spacetrack.rutas.domain.EstadoRuta;
 import co.edu.usta.spacetrack.rutas.domain.Ruta;
 import co.edu.usta.spacetrack.rutas.repository.RutaRepository;
-import co.edu.usta.spacetrack.rutas.service.DetectorDesvio;
 import co.edu.usta.spacetrack.zonas.domain.Zona;
 import org.junit.jupiter.api.Test;
 
@@ -35,12 +34,11 @@ class AlertaRutaServiceTest {
     private final RutaRepository rutaRepository = mock(RutaRepository.class);
     private final EntregaRepository entregaRepository = mock(EntregaRepository.class);
     private final NecesidadClienteRepository necesidadRepository = mock(NecesidadClienteRepository.class);
-    private final DetectorDesvio detector = mock(DetectorDesvio.class);
 
     // Miercoles 18 de noviembre de 2026; la franja del contrato es 06:00-14:00 de lunes a viernes.
     private AlertaRutaService servicioALas(int hora, int minuto) {
         LocalDateTime ahora = LocalDateTime.of(2026, 11, 18, hora, minuto);
-        return new AlertaRutaService(rutaRepository, entregaRepository, necesidadRepository, detector,
+        return new AlertaRutaService(rutaRepository, entregaRepository, necesidadRepository,
                 Clock.fixed(ahora.atZone(BOGOTA).toInstant(), BOGOTA), 60, 10);
     }
 
@@ -152,36 +150,9 @@ class AlertaRutaServiceTest {
         Ruta ruta = prepararRuta(1L, 10, 7, LocalDateTime.of(2026, 11, 18, 7, 0));
         when(rutaRepository.findById(1L)).thenReturn(Optional.of(ruta));
 
-        assertThat(servicioALas(13, 15).alertasDeRuta(1L)).hasSize(1);
+        assertThat(servicioALas(13, 15).alertaDeRuta(1L)).isPresent();
         ruta.setEstado(EstadoRuta.FINALIZADA);
-        assertThat(servicioALas(13, 15).alertasDeRuta(1L)).isEmpty();
-    }
-
-    @Test
-    void alertaCuandoElVehiculoSeDesviaDeLaRuta() {
-        Ruta ruta = prepararRuta(1L, 10, 9, LocalDateTime.of(2026, 11, 18, 7, 0));
-        when(detector.evaluar(org.mockito.ArgumentMatchers.eq(ruta), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(Optional.of(new DetectorDesvio.PosicionReportada(4.76, -74.13, 20,
-                        LocalDateTime.of(2026, 11, 18, 9, 55), 3.4, true, true)));
-
-        List<AlertaRutaResponse> alertas = servicioALas(10, 0).alertasActivas();
-
-        assertThat(alertas).singleElement().satisfies(a -> {
-            assertThat(a.tipo()).isEqualTo(co.edu.usta.spacetrack.alertas.domain.TipoAlerta.DESVIO_RUTA);
-            assertThat(a.nivel()).isEqualTo(NivelAlerta.CRITICA);
-            assertThat(a.distanciaDesvioKm()).isEqualTo(3.4);
-            assertThat(a.mensaje()).contains("se desvio de la ruta").contains("3.4 km").contains("Norte - Suba");
-        });
-    }
-
-    @Test
-    void sinAlertaDeDesvioSiLaPosicionEstaDentroDelRecorrido() {
-        Ruta ruta = prepararRuta(1L, 10, 9, LocalDateTime.of(2026, 11, 18, 7, 0));
-        when(detector.evaluar(org.mockito.ArgumentMatchers.eq(ruta), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(Optional.of(new DetectorDesvio.PosicionReportada(4.74, -74.08, 20,
-                        LocalDateTime.of(2026, 11, 18, 9, 55), 0.2, false, false)));
-
-        assertThat(servicioALas(10, 0).alertasActivas()).isEmpty();
+        assertThat(servicioALas(13, 15).alertaDeRuta(1L)).isEmpty();
     }
 
     private Ruta prepararRuta(Long id, int programadas, long registradas, LocalDateTime inicio) {

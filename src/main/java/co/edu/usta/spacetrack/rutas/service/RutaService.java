@@ -53,14 +53,12 @@ public class RutaService {
     private final NecesidadClienteRepository necesidadRepository;
     private final CierreDiarioRepository cierreRepository;
     private final SimuladorUbicacion simuladorUbicacion;
-    private final DetectorDesvio detectorDesvio;
     private final Clock reloj;
 
     public RutaService(RutaRepository rutaRepository, ZonaRepository zonaRepository, OperacionRepository operacionRepository,
                        VehiculoRepository vehiculoRepository, ConductorRepository conductorRepository,
                        EntregaRepository entregaRepository, NecesidadClienteRepository necesidadRepository,
-                       CierreDiarioRepository cierreRepository, SimuladorUbicacion simuladorUbicacion,
-                       DetectorDesvio detectorDesvio, Clock reloj) {
+                       CierreDiarioRepository cierreRepository, SimuladorUbicacion simuladorUbicacion, Clock reloj) {
         this.rutaRepository = rutaRepository;
         this.zonaRepository = zonaRepository;
         this.operacionRepository = operacionRepository;
@@ -70,7 +68,6 @@ public class RutaService {
         this.necesidadRepository = necesidadRepository;
         this.cierreRepository = cierreRepository;
         this.simuladorUbicacion = simuladorUbicacion;
-        this.detectorDesvio = detectorDesvio;
         this.reloj = reloj;
     }
 
@@ -201,16 +198,9 @@ public class RutaService {
         }
     }
 
-    // Si el vehiculo reporto su posicion recientemente se muestra esa (y si se salio del recorrido); si no, la simulada.
     private UbicacionRutaResponse calcularUbicacion(Ruta ruta) {
-        LocalDateTime ahora = LocalDateTime.now(reloj);
-        UbicacionRutaResponse simulada = simuladorUbicacion.calcular(ruta,
-                entregaRepository.findByRutaIdOrderByIdAsc(ruta.getId()), ahora);
-        return detectorDesvio.evaluar(ruta, ahora).map(p -> simulada.conPosicionReportada(p.latitud(), p.longitud(),
-                p.velocidadKmh(), p.fueraDeRuta(), p.distanciaKm(), p.fueraDeRuta()
-                        ? String.format(java.util.Locale.ROOT, "Fuera de ruta: a %.1f km del recorrido planeado", p.distanciaKm())
-                        : "Posición reportada a las " + p.reportadaEn().toLocalTime().withNano(0) + ", dentro del recorrido"))
-                .orElse(simulada);
+        return simuladorUbicacion.calcular(ruta, entregaRepository.findByRutaIdOrderByIdAsc(ruta.getId()),
+                LocalDateTime.now(reloj));
     }
 
     private String alertaDeEntregasFaltantes(Ruta ruta) {
@@ -221,8 +211,7 @@ public class RutaService {
             return null;
         }
         Zona zona = ruta.getZona();
-        String nombreZona = zona == null ? "sin zona" : zona.getNombre().equalsIgnoreCase(zona.getLocalidad())
-                ? zona.getNombre() : zona.getNombre() + " (" + zona.getLocalidad() + ")";
+        String nombreZona = zona == null ? "sin zona" : zona.getNombre() + " (" + zona.getLocalidad() + ")";
         return "La ruta " + ruta.getCodigo() + " se finalizo con entregas faltantes en la zona " + nombreZona + ": "
                 + sinRegistrar + " sin registrar y " + noEntregadas + " no entregadas de " + programadas + " programadas";
     }
@@ -363,8 +352,7 @@ public class RutaService {
         ruta.setOperacion(operacion);
         ruta.setPuntoOrigen(solicitud.puntoOrigen().trim());
         ruta.setPuntoDestino(solicitud.puntoDestino().trim());
-        ruta.setDistanciaEstimadaKm(solicitud.distanciaEstimadaKm() != null ? solicitud.distanciaEstimadaKm()
-                : SimuladorUbicacion.distanciaEstimadaKm(zona.getLocalidad(), solicitud.numeroEntregasProgramadas()));
+        ruta.setDistanciaEstimadaKm(solicitud.distanciaEstimadaKm());
         ruta.setNumeroEntregasProgramadas(solicitud.numeroEntregasProgramadas());
     }
 

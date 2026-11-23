@@ -7,8 +7,7 @@ import { Activo, BarraEntregas, DiasSemanaChips, Doble, Etiqueta, EstadoRutaEtiq
 import {
   TIPOS_VEHICULO, TONO_OPERACION, capitalizar, fecha, fechaHora, hora, hoy, licenciaVigente, miles, nombreConductor,
 } from "@/lib/formato";
-import type { Cliente, Conductor, Necesidad, Operacion, Ruta, Vehiculo } from "@/lib/tipos";
-import { FormularioRuta, type PropsFormularioRuta } from "./rutas";
+import type { Cliente, Conductor, Necesidad, Operacion, Ruta, Vehiculo, Zona } from "@/lib/tipos";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Cualquiera = any;
@@ -31,10 +30,6 @@ export interface ModuloDef<T = Cualquiera> {
   /** Las rutas solo se editan/eliminan desde su detalle. */
   soloDetalle?: boolean;
   alias?: Record<string, string>;
-  /** Formulario propio en lugar del generico (p. ej. rutas, que se autocompletan desde la operacion). */
-  formulario?: (props: PropsFormularioRuta) => ReactNode;
-  /** Accion extra en cada fila (p. ej. «Crear ruta» desde una operacion). */
-  accionFila?: { texto: string; href: (item: T) => string; visible?: (item: T) => boolean };
 }
 
 const clientes: ModuloDef<Cliente> = {
@@ -104,9 +99,8 @@ const conductores: ModuloDef<Conductor> = {
 
 const operaciones: ModuloDef<Operacion> = {
   clave: "operaciones", grupo: "Gestión", titulo: "Operaciones", singular: "operación", femenino: true, api: "/api/operaciones", icono: "operaciones",
-  descripcion: "Contratos de distribución suscritos con cada cliente. Desde aquí puede crear sus rutas.",
+  descripcion: "Contratos de distribución suscritos con cada cliente.",
   alias: { periodoValido: "fechaFin" },
-  accionFila: { texto: "Crear ruta", href: (o) => `/panel/rutas/?operacion=${o.id}`, visible: (o) => o.estado === "ACTIVA" },
   columnas: [
     ["Contrato", (o) => <Doble principal={o.codigoContrato} secundario={o.nombreOperacion} />],
     ["Cliente", (o) => o.razonSocialCliente],
@@ -157,9 +151,42 @@ const necesidades: ModuloDef<Necesidad> = {
   ],
 };
 
+const zonas: ModuloDef<Zona> = {
+  clave: "zonas", grupo: "Planeación", titulo: "Zonas", singular: "zona", femenino: true, api: "/api/zonas", icono: "zonas",
+  descripcion: "Áreas de la ciudad cubiertas por las rutas. La localidad define la ubicación en el mapa.",
+  columnas: [
+    ["Zona", (z) => <Doble principal={z.nombre} secundario={z.codigo} />],
+    ["Localidad", (z) => z.localidad],
+    ["Descripción", (z) => z.descripcion || "—"],
+    ["Estado", (z) => <Activo valor={z.activa} femenino />],
+  ],
+  campos: [
+    { nombre: "codigo", etiqueta: "Código", ayuda: "Ej.: Z-NORTE" },
+    { nombre: "nombre", etiqueta: "Nombre" },
+    { nombre: "localidad", etiqueta: "Localidad", tipo: "select", opcionesApi: "/api/zonas/localidades", opcion: (l) => String(l.nombre),
+      ayuda: "Solo localidades del catálogo, para poder ubicarlas en el mapa" },
+    { nombre: "descripcion", etiqueta: "Descripción", opcional: true },
+    { nombre: "activa", etiqueta: "Zona activa", tipo: "check", valor: true },
+  ],
+};
+
+export const CAMPOS_RUTA: CampoDef[] = [
+  { nombre: "codigo", etiqueta: "Código", ayuda: "Ej.: R-001" },
+  { nombre: "nombre", etiqueta: "Nombre" },
+  { nombre: "zonaId", etiqueta: "Zona", tipo: "relacion", fuente: "zonas", filtrar: (z) => Boolean(z.activa),
+    mostrar: (z) => `${z.nombre} (${z.localidad})` },
+  { nombre: "operacionId", etiqueta: "Operación / contrato", tipo: "relacion", fuente: "operaciones", filtrar: (o) => o.estado === "ACTIVA",
+    mostrar: (o) => `${o.codigoContrato} — ${o.razonSocialCliente}` },
+  { nombre: "puntoOrigen", etiqueta: "Punto de origen", valor: "CEDI Puente Aranda" },
+  { nombre: "puntoDestino", etiqueta: "Punto de destino" },
+  { nombre: "distanciaEstimadaKm", etiqueta: "Distancia estimada (km)", tipo: "number" },
+  { nombre: "numeroEntregasProgramadas", etiqueta: "Entregas programadas", tipo: "number", valor: 1 },
+];
+
 const rutas: ModuloDef<Ruta> = {
   clave: "rutas", grupo: "Planeación", titulo: "Rutas", singular: "ruta", femenino: true, api: "/api/rutas", icono: "rutas",
-  descripcion: "Recorridos de distribución por localidad de Bogotá. Haga clic en una ruta para ver su avance, entregas y ubicación.",
+  descripcion: "Recorridos de distribución con sus recursos, entregas programadas y estado.",
+  alias: { recorridoValido: "puntoDestino" },
   soloDetalle: true,
   enlaceFila: (r) => `/panel/rutas/detalle/?id=${r.id}`,
   filtro: { parametro: "estado", etiqueta: "Estado", opciones: [["PENDIENTE", "Pendiente"], ["EN_CURSO", "En curso"], ["FINALIZADA", "Finalizada"]] },
@@ -171,10 +198,8 @@ const rutas: ModuloDef<Ruta> = {
     ["Estado", (r) => <Doble principal={<EstadoRutaEtiqueta estado={r.estado} />}
       secundario={r.estado === "EN_CURSO" ? `Desde ${fechaHora(r.fechaInicioReal)}` : r.estado === "FINALIZADA" ? `Cerrada ${fechaHora(r.fechaFinReal)}` : undefined} />],
   ],
-  campos: [],
-  formulario: (props) => <FormularioRuta {...props} />,
+  campos: CAMPOS_RUTA,
 };
 
-// Las zonas ya no son un modulo: son las localidades de Bogota guardadas en la base (ver FormularioRuta).
-export const MODULOS: Record<string, ModuloDef> = { clientes, vehiculos, conductores, operaciones, necesidades, rutas };
+export const MODULOS: Record<string, ModuloDef> = { clientes, vehiculos, conductores, operaciones, necesidades, zonas, rutas };
 export const CLAVES_MODULOS = Object.keys(MODULOS);

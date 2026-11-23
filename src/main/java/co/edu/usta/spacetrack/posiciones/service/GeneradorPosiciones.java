@@ -8,7 +8,6 @@ import co.edu.usta.spacetrack.rutas.domain.EstadoRuta;
 import co.edu.usta.spacetrack.rutas.domain.Ruta;
 import co.edu.usta.spacetrack.rutas.dto.UbicacionRutaResponse;
 import co.edu.usta.spacetrack.rutas.repository.RutaRepository;
-import co.edu.usta.spacetrack.rutas.service.DetectorDesvio;
 import co.edu.usta.spacetrack.rutas.service.SimuladorUbicacion;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -28,17 +27,15 @@ public class GeneradorPosiciones {
     private final RutaRepository rutaRepository;
     private final EntregaRepository entregaRepository;
     private final SimuladorUbicacion simuladorUbicacion;
-    private final DetectorDesvio detectorDesvio;
     private final Clock reloj;
 
     public GeneradorPosiciones(PosicionRutaRepository posicionRepository, RutaRepository rutaRepository,
                                EntregaRepository entregaRepository, SimuladorUbicacion simuladorUbicacion,
-                               DetectorDesvio detectorDesvio, Clock reloj) {
+                               Clock reloj) {
         this.posicionRepository = posicionRepository;
         this.rutaRepository = rutaRepository;
         this.entregaRepository = entregaRepository;
         this.simuladorUbicacion = simuladorUbicacion;
-        this.detectorDesvio = detectorDesvio;
         this.reloj = reloj;
     }
 
@@ -48,10 +45,6 @@ public class GeneradorPosiciones {
     public void generar() {
         LocalDateTime ahora = LocalDateTime.now(reloj);
         for (Ruta ruta : rutaRepository.findByEstadoOrderByCodigoAsc(EstadoRuta.EN_CURSO)) {
-            // Si el vehiculo esta reportando su posicion real, no se simula encima de ella.
-            if (detectorDesvio.tieneReporteVigente(ruta, ahora)) {
-                continue;
-            }
             UbicacionRutaResponse ubicacion = simuladorUbicacion.calcular(ruta,
                     entregaRepository.findByRutaIdOrderByIdAsc(ruta.getId()), ahora);
             PosicionRuta posicion = new PosicionRuta();

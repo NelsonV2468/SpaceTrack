@@ -55,25 +55,6 @@ public enum Localidad {
     public double getLatitud() { return latitud; }
     public double getLongitud() { return longitud; }
 
-    /** Las 19 localidades urbanas de Bogota (en el orden oficial, 1 a 19); los municipios vecinos no cuentan. */
-    public boolean isDeBogota() {
-        return ordinal() < SOACHA.ordinal();
-    }
-
-    /** Numero oficial de la localidad en Bogota (Usaquen = 1 ... Ciudad Bolivar = 19). */
-    public int getNumero() {
-        return ordinal() + 1;
-    }
-
-    /** Codigo de la zona predefinida de la localidad, por ejemplo LOC-02 para Chapinero. */
-    public String codigoZona() {
-        return String.format("LOC-%02d", getNumero());
-    }
-
-    public static List<Localidad> deBogota() {
-        return Arrays.stream(values()).filter(Localidad::isDeBogota).toList();
-    }
-
     /**
      * Reconoce la localidad sin importar tildes, mayusculas ni texto adicional
      * ("Localidad de Usaquen" o "USAQUÉN" equivalen a Usaquén).

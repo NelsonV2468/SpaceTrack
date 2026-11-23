@@ -4,7 +4,6 @@ import type { PuntoMapa, Ubicacion } from "./tipos";
 const LIMITES = { latMin: 4.48, latMax: 4.78, lngMin: -74.25, lngMax: -74.0 };
 const ANCHO = 1000;
 const ALTO = Math.round((ANCHO * (LIMITES.latMax - LIMITES.latMin)) / (LIMITES.lngMax - LIMITES.lngMin));
-const DESVIO = "#c0392b";
 const COLORES = ["#1d4ed8", "#b45309", "#047857", "#7c3aed", "#be123c", "#0e7490", "#4d7c0f", "#a21caf"];
 
 type Par = [number, number];
@@ -83,12 +82,8 @@ function ruta(u: Ubicacion & { vehiculo: PuntoMapa }, tono: string, escala: numb
   const recorridos = Math.min(u.entregasRegistradas, u.paradas.length);
   const p = [`<g opacity="${atenuada ? 0.25 : 1}" data-ruta="${u.rutaId}" style="cursor:pointer">`];
   p.push(`<polyline points="${puntos.map(xy).join(" ")}" fill="none" stroke="${tono}" stroke-width="${(resaltada ? 3 : 2) * escala}" stroke-dasharray="${6 * escala} ${5 * escala}" stroke-opacity=".55" stroke-linejoin="round"/>`);
-  // Si el vehiculo se salio del recorrido, el tramo hasta su posicion se dibuja en rojo punteado.
-  const visitados = puntos.slice(0, recorridos + 1);
-  const hecho = u.fueraDeRuta ? visitados : [...visitados, u.vehiculo];
+  const hecho = [...puntos.slice(0, recorridos + 1), u.vehiculo];
   p.push(`<polyline points="${hecho.map(xy).join(" ")}" fill="none" stroke="${tono}" stroke-width="${(resaltada ? 4.5 : 3) * escala}" stroke-linejoin="round" stroke-linecap="round"/>`);
-  if (u.fueraDeRuta)
-    p.push(`<polyline points="${[visitados[visitados.length - 1], u.vehiculo].map(xy).join(" ")}" fill="none" stroke="${DESVIO}" stroke-width="${2.5 * escala}" stroke-dasharray="${4 * escala} ${4 * escala}"/>`);
   u.paradas.forEach((parada, i) => {
     const relleno = parada.estado === "ENTREGADA" ? "#0f7b4f" : parada.estado === "NO_ENTREGADA" ? "#c0392b" : "#ffffff";
     p.push(`<circle cx="${x(parada.longitud).toFixed(1)}" cy="${y(parada.latitud).toFixed(1)}" r="${5 * escala}" fill="${relleno}" stroke="${parada.estado === "PENDIENTE" ? tono : "#fff"}" stroke-width="${1.8 * escala}"><title>${esc(`${u.codigo} · ${parada.etiqueta} · ${(parada.estado ?? "").replace("_", " ")}`)}</title></circle>`);
@@ -103,15 +98,13 @@ function ruta(u: Ubicacion & { vehiculo: PuntoMapa }, tono: string, escala: numb
 
 function vehiculo(u: Ubicacion & { vehiculo: PuntoMapa }, tono: string, escala: number): string {
   const cx = x(u.vehiculo.longitud), cy = y(u.vehiculo.latitud);
-  const texto = u.fueraDeRuta ? `${u.vehiculo.etiqueta} · FUERA DE RUTA` : u.vehiculo.etiqueta;
-  const anillo = u.fueraDeRuta
-    ? `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${14 * escala}" fill="none" stroke="${DESVIO}" stroke-width="${2.5 * escala}" stroke-dasharray="${4 * escala} ${3 * escala}"/>` : "";
+  const texto = u.vehiculo.etiqueta;
   const ancho = (texto.length * 7.2 + 16) * escala, alto = 20 * escala;
   const pulso = (u.velocidadKmh ?? 0) > 0
     ? `<circle class="pulso" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="9" fill="${tono}" style="transform-box: fill-box"/>` : "";
-  return `<g data-ruta="${u.rutaId}" style="cursor:pointer">${pulso}${anillo}`
+  return `<g data-ruta="${u.rutaId}" style="cursor:pointer">${pulso}`
     + `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${7 * escala}" fill="${tono}" stroke="#fff" stroke-width="${2.5 * escala}"/>`
-    + `<rect x="${(cx - ancho / 2).toFixed(1)}" y="${(cy - alto - 12 * escala).toFixed(1)}" width="${ancho.toFixed(1)}" height="${alto.toFixed(1)}" rx="${3 * escala}" fill="${u.fueraDeRuta ? DESVIO : "#102741"}"/>`
+    + `<rect x="${(cx - ancho / 2).toFixed(1)}" y="${(cy - alto - 12 * escala).toFixed(1)}" width="${ancho.toFixed(1)}" height="${alto.toFixed(1)}" rx="${3 * escala}" fill="#102741"/>`
     + `<text x="${cx.toFixed(1)}" y="${(cy - 18 * escala).toFixed(1)}" text-anchor="middle" font-size="${11.5 * escala}" fill="#fff" font-weight="700" letter-spacing="${0.5 * escala}">${esc(texto)}</text>`
     + `<title>${esc(`${u.codigo} · ${u.descripcionPosicion}`)}</title></g>`;
 }

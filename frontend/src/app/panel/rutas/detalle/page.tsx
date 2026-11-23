@@ -5,17 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState, type FormEvent } from "react";
 import { AvisoAlerta, REFRESCO_ALERTAS_MS } from "@/components/AlertasRutas";
 import { useAvisos } from "@/components/Avisos";
+import { Formulario } from "@/components/Formulario";
 import { Icono, type NombreIcono } from "@/components/Icono";
 import { MapaBogota } from "@/components/MapaBogota";
 import { Modal } from "@/components/Modal";
 import { BarraEntregas, Cargando, Encabezado, Etiqueta, Leyenda, Panel, Vacio } from "@/components/ui";
-import { api, ApiError } from "@/lib/api";
+import { api, apiGet, ApiError } from "@/lib/api";
 import { ESTADOS_RUTA, INICIAL_DIA, REFRESCO_MAPA_MS, fechaHora, hora, licenciaVigente, miles, nombreConductor, porcentaje } from "@/lib/formato";
 import { useRecurso } from "@/lib/hooks";
 import { mensajeSinUbicacion } from "@/lib/mapa";
 import { useSesion } from "@/lib/sesion";
-import type { AlertaRuta, Conductor, Entrega, Necesidad, Operacion, Ruta, Ubicacion, Vehiculo } from "@/lib/tipos";
-import { FormularioRuta } from "@/modulos/rutas";
+import type { AlertaRuta, Conductor, Entrega, Necesidad, Operacion, Ruta, Ubicacion, Vehiculo, Zona } from "@/lib/tipos";
+import { CAMPOS_RUTA } from "@/modulos/config";
 import { RegistroEntrega, TablaEntregas } from "@/modulos/entregas";
 
 export default function PaginaDetalle() {
@@ -30,10 +31,11 @@ function DetalleRuta() {
   const ruta = useRecurso<Ruta>(id ? `/api/rutas/${id}` : null);
   const entregas = useRecurso<Entrega[]>(id ? `/api/entregas?rutaId=${id}` : null);
   const enCurso = ruta.datos?.estado === "EN_CURSO";
-  // Alertas vigentes de la ruta (franja horaria y desvio); lista vacia si no tiene.
-  const alerta = useRecurso<AlertaRuta[]>(id && enCurso ? `/api/alertas/rutas/${id}` : null, REFRESCO_ALERTAS_MS);
+  // ON-4: la API responde 204 (null) cuando la ruta no tiene alerta.
+  const alerta = useRecurso<AlertaRuta | null>(id && enCurso ? `/api/alertas/rutas/${id}` : null, REFRESCO_ALERTAS_MS);
   const ubicacion = useRecurso<Ubicacion>(id && ruta.datos ? `/api/rutas/${id}/ubicacion` : null, enCurso ? REFRESCO_MAPA_MS : undefined);
   const [modal, setModal] = useState<"editar" | "asignar" | "entrega" | null>(null);
+  const [fuentesEdicion, setFuentesEdicion] = useState<Record<string, never[]>>({});
   const opcionesMapa = useMemo(() => ({ enfocar: true }), []);
   const ubicaciones = useMemo(() => (ubicacion.datos ? [ubicacion.datos] : []), [ubicacion.datos]);
 
@@ -74,7 +76,11 @@ function DetalleRuta() {
     }
   }
 
-  const abrirEdicion = () => setModal("editar");
+  async function abrirEdicion() {
+    const [zonas, operaciones] = await Promise.all([apiGet<Zona[]>("/api/zonas"), apiGet<Operacion[]>("/api/operaciones")]).catch(() => [[], []]);
+    setFuentesEdicion({ zonas: zonas as never[], operaciones: operaciones as never[] });
+    setModal("editar");
+  }
 
   const orden = ["PENDIENTE", "EN_CURSO", "FINALIZADA"] as const;
   const actual = orden.indexOf(r.estado);
@@ -103,7 +109,7 @@ function DetalleRuta() {
           </> : null}
         </>} />
 
-      {enCurso ? (alerta.datos ?? []).map((a) => <AvisoAlerta key={a.tipo} alerta={a} />) : null}
+      {enCurso && alerta.datos ? <AvisoAlerta alerta={alerta.datos} /> : null}
 
       {r.estado === "PENDIENTE" && sinRecursos ? (
         <div className="aviso warn">La ruta no tiene vehículo y conductor asignados. Asígnelos para poder iniciarla.</div>
@@ -141,8 +147,7 @@ function DetalleRuta() {
             <TablaEntregas entregas={entregas.datos ?? []} puedeAnular={() => enCurso} alCambiar={recargar} />
           </Panel>
 
-          <Panel titulo={u?.posicionReportada ? "Ubicación reportada del vehículo" : "Ubicación simulada del vehículo"}
-            extra={u?.fueraDeRuta ? <Etiqueta tono="danger">Fuera de ruta</Etiqueta> : enCurso ? <Etiqueta tono="info">En vivo</Etiqueta> : null}>
+          <Panel titulo="Ubicación simulada del vehículo" extra={enCurso ? <Etiqueta tono="info">En vivo</Etiqueta> : null}>
             <MapaBogota mini ubicaciones={ubicaciones} opciones={opcionesMapa} />
             <div className="mapa-pie">
               {!u ? <span>{ubicacion.error ?? "Cargando ubicación…"}</span> : sinUbicacion ? <span>{sinUbicacion}</span> : <>
@@ -166,6 +171,7 @@ function DetalleRuta() {
               <dl className="ficha">
                 <Dato titulo="Origen" valor={r.puntoOrigen} />
                 <Dato titulo="Destino" valor={r.puntoDestino} />
+                <Dato titulo="Distancia estimada" valor={`${miles(r.distanciaEstimadaKm)} km`} />
                 <Dato titulo="Entregas programadas" valor={miles(p)} />
                 <Dato titulo="Zona" valor={r.nombreZona} />
                 <Dato titulo="Contrato" valor={r.codigoContrato} />
@@ -186,7 +192,8 @@ function DetalleRuta() {
 
       {modal === "editar" ? (
         <Modal titulo="Editar ruta" alCerrar={() => setModal(null)}>
-          <FormularioRuta inicial={r} textoEnviar="Guardar cambios" alCancelar={() => setModal(null)}
+          <Formulario campos={CAMPOS_RUTA} inicial={r as never} fuentes={fuentesEdicion} alias={{ recorridoValido: "puntoDestino" }}
+            textoEnviar="Guardar cambios" alCancelar={() => setModal(null)}
             alEnviar={async (cuerpo) => {
               await api("PUT", `/api/rutas/${r.id}`, cuerpo);
               avisar("exito", "La ruta se actualizó correctamente.");

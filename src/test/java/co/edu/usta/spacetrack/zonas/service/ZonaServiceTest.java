@@ -1,79 +1,64 @@
 package co.edu.usta.spacetrack.zonas.service;
 
-import co.edu.usta.spacetrack.zonas.domain.Localidad;
+import co.edu.usta.spacetrack.rutas.repository.RutaRepository;
+import co.edu.usta.spacetrack.shared.exception.ReglaDeNegocioException;
 import co.edu.usta.spacetrack.zonas.domain.Zona;
+import co.edu.usta.spacetrack.zonas.dto.ZonaRequest;
 import co.edu.usta.spacetrack.zonas.dto.ZonaResponse;
 import co.edu.usta.spacetrack.zonas.repository.ZonaRepository;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ZonaServiceTest {
 
     private final ZonaRepository zonaRepository = mock(ZonaRepository.class);
-    private final ZonaService zonaService = new ZonaService(zonaRepository);
+    private final RutaRepository rutaRepository = mock(RutaRepository.class);
+    private final ZonaService zonaService = new ZonaService(zonaRepository, rutaRepository);
 
-    ZonaServiceTest() {
-        when(zonaRepository.findByCodigoIgnoreCase(anyString())).thenReturn(Optional.empty());
+    @Test
+    void rechazaCodigoDuplicadoSinDistinguirMayusculas() {
+        when(zonaRepository.existsByCodigoIgnoreCase("Z-NORTE")).thenReturn(true);
+
+        assertThatThrownBy(() -> zonaService.crear(solicitud()))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("Ya existe una zona registrada con ese codigo");
+    }
+
+    @Test
+    void noEliminaZonaConRutasAsociadas() {
+        when(zonaRepository.findById(1L)).thenReturn(Optional.of(new Zona()));
+        when(rutaRepository.existsByZonaId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> zonaService.eliminar(1L))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("No se puede eliminar la zona porque tiene rutas asociadas");
+        verify(zonaRepository, never()).delete(any());
+    }
+
+    @Test
+    void guardaElNombreOficialDeLaLocalidadDelCatalogo() {
         when(zonaRepository.save(any(Zona.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        ZonaResponse respuesta = zonaService.crear(new ZonaRequest("Z-SUR", "Zona Sur", "localidad de ciudad bolivar", null, true));
+
+        assertThat(respuesta.localidad()).isEqualTo("Ciudad Bolívar");
     }
 
     @Test
-    void registraLas19LocalidadesDeBogotaSinMunicipiosVecinos() {
-        assertThat(zonaService.asegurarCatalogo()).isEqualTo(19);
-
-        ArgumentCaptor<Zona> guardadas = ArgumentCaptor.forClass(Zona.class);
-        verify(zonaRepository, times(19)).save(guardadas.capture());
-        assertThat(guardadas.getAllValues()).extracting(Zona::getLocalidad)
-                .contains("Usaquén", "Ciudad Bolívar", "La Candelaria").doesNotContain("Soacha", "Funza", "Mosquera");
-        assertThat(guardadas.getAllValues().get(1).getCodigo()).isEqualTo("LOC-02");
-        assertThat(guardadas.getAllValues()).allSatisfy(z -> assertThat(z.isActiva()).isTrue());
-    }
-
-    @Test
-    void elCatalogoEsIdempotente() {
-        when(zonaRepository.findByCodigoIgnoreCase(anyString())).thenReturn(Optional.of(new Zona()));
-
-        assertThat(zonaService.asegurarCatalogo()).isZero();
+    void rechazaUnaLocalidadQueNoSePuedeUbicarEnElMapa() {
+        assertThatThrownBy(() -> zonaService.crear(new ZonaRequest("Z-X", "Zona X", "Medellin", null, true)))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessageStartingWith("La localidad 'Medellin' no esta en el catalogo. Use una de: Usaquén, Chapinero");
         verify(zonaRepository, never()).save(any());
-    }
-
-    @Test
-    void noChocaConUnaZonaAntiguaDelMismoNombre() {
-        when(zonaRepository.existsByNombreIgnoreCase("Chapinero")).thenReturn(true);
-
-        Zona zona = zonaService.zonaDeLocalidad(Localidad.CHAPINERO);
-
-        assertThat(zona.getNombre()).isEqualTo("Localidad 2 - Chapinero");
-        assertThat(zona.getLocalidad()).isEqualTo("Chapinero");
-    }
-
-    @Test
-    void noOfreceMunicipiosFueraDeBogota() {
-        assertThatThrownBy(() -> zonaService.zonaDeLocalidad(Localidad.SOACHA)).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void listaPrimeroElCatalogoYMarcaLasZonasAntiguas() {
-        Zona antigua = zona("Z-NORTE", "Zona norte");
-        Zona catalogo = zona("LOC-11", "Suba");
-        when(zonaRepository.findAllByOrderByCodigoAsc()).thenReturn(List.of(antigua, catalogo));
-
-        assertThat(zonaService.listar()).extracting(ZonaResponse::codigo, ZonaResponse::catalogo)
-                .containsExactly(tuple("LOC-11", true), tuple("Z-NORTE", false));
     }
 
     @Test
@@ -85,12 +70,7 @@ class ZonaServiceTest {
                 });
     }
 
-    private Zona zona(String codigo, String nombre) {
-        Zona zona = new Zona();
-        zona.setCodigo(codigo);
-        zona.setNombre(nombre);
-        zona.setLocalidad(nombre);
-        zona.setActiva(true);
-        return zona;
+    private ZonaRequest solicitud() {
+        return new ZonaRequest("Z-NORTE", "Zona Norte", "Usaquen", "Cobertura calle 100 a calle 170", true);
     }
 }
