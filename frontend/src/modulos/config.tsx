@@ -7,7 +7,7 @@ import { Activo, BarraEntregas, DiasSemanaChips, Doble, Etiqueta, EstadoRutaEtiq
 import {
   TIPOS_VEHICULO, TONO_OPERACION, capitalizar, fecha, fechaHora, hora, hoy, licenciaVigente, miles, nombreConductor,
 } from "@/lib/formato";
-import type { Cliente, Conductor, Necesidad, Operacion, Ruta, Vehiculo } from "@/lib/tipos";
+import type { Cliente, Conductor, PlanOperacion, Ruta, Vehiculo } from "@/lib/tipos";
 import { FormularioRuta, type PropsFormularioRuta } from "./rutas";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,57 +102,41 @@ const conductores: ModuloDef<Conductor> = {
   ],
 };
 
-const operaciones: ModuloDef<Operacion> = {
-  clave: "operaciones", grupo: "Gestión", titulo: "Operaciones", singular: "operación", femenino: true, api: "/api/operaciones", icono: "operaciones",
-  descripcion: "Contratos de distribución suscritos con cada cliente. Desde aquí puede crear sus rutas.",
-  alias: { periodoValido: "fechaFin" },
+const operaciones: ModuloDef<PlanOperacion> = {
+  clave: "operaciones", grupo: "Gestión", titulo: "Operaciones", singular: "operación", femenino: true,
+  api: "/api/operaciones/planes", icono: "operaciones",
+  descripcion: "Contratos de distribución con lo que necesita cada cliente: días, horario y vehículos. Desde aquí se crean sus rutas.",
+  alias: { periodoValido: "fechaFin", horarioValido: "horaFin" },
   accionFila: { texto: "Crear ruta", href: (o) => `/panel/rutas/?operacion=${o.id}`, visible: (o) => o.estado === "ACTIVA" },
   columnas: [
-    ["Contrato", (o) => <Doble principal={o.codigoContrato} secundario={o.nombreOperacion} />],
-    ["Cliente", (o) => o.razonSocialCliente],
-    ["Vigencia", (o) => <Doble principal={`${fecha(o.fechaInicio)} – ${fecha(o.fechaFin)}`} secundario={o.diasOperacion} />],
-    ["Alcance", (o) => <Doble principal={`${o.numeroVehiculosRequeridos} vehículos`} secundario={`${miles(o.numeroEntregasEsperadas)} entregas esperadas`} />],
+    ["Contrato", (o) => <Doble principal={o.codigoContrato} secundario={`${o.nombreOperacion} · ${miles(o.numeroEntregasEsperadas)} entregas`} />],
+    ["Cliente", (o) => <Doble principal={o.razonSocialCliente} secundario={`${fecha(o.fechaInicio)} – ${fecha(o.fechaFin)}`} />],
+    ["Días y horario", (o) => <Doble principal={o.diasOperacion.length ? <DiasSemanaChips lista={o.diasOperacion} /> : o.diasOperacionTexto}
+      secundario={o.horaInicio ? `${hora(o.horaInicio)} – ${hora(o.horaFin)}` : "Horario sin definir"} />],
+    ["Vehículos", (o) => o.tipoVehiculo ? <Doble principal={`${o.cantidadVehiculos} × ${o.tipoVehiculo}${o.requiereCadenaFrio ? " · frío" : ""}`}
+      secundario={<Etiqueta tono={o.flotaSuficiente ? "ok" : "warn"}>{o.vehiculosDisponibles} de {o.cantidadVehiculos} disponibles</Etiqueta>} />
+      : <Etiqueta tono="warn">Sin definir</Etiqueta>],
     ["Estado", (o) => <Etiqueta tono={TONO_OPERACION[o.estado] ?? "neutral"}>{capitalizar(o.estado)}</Etiqueta>],
   ],
   campos: [
+    { nombre: "s1", etiqueta: "1. Contrato", tipo: "seccion" },
     { nombre: "codigoContrato", etiqueta: "Código de contrato", ayuda: "Ej.: CT-2026-001" },
     { nombre: "clienteId", etiqueta: "Cliente", tipo: "relacion", fuente: "clientes", filtrar: (c) => Boolean(c.activo),
       mostrar: (c) => String(c.razonSocial) },
     { nombre: "nombreOperacion", etiqueta: "Nombre de la operación", ancho: true },
     { nombre: "fechaInicio", etiqueta: "Fecha de inicio", tipo: "date", valor: hoy(0) },
     { nombre: "fechaFin", etiqueta: "Fecha de finalización", tipo: "date", valor: hoy(90) },
-    { nombre: "diasOperacion", etiqueta: "Días de operación", valor: "Lunes a sábado",
-      ayuda: "Ej.: Lunes a viernes · Lunes, miércoles y viernes · Todos los días" },
-    { nombre: "estado", etiqueta: "Estado", tipo: "select", opciones: [["ACTIVA", "Activa"], ["PAUSADA", "Pausada"], ["FINALIZADA", "Finalizada"]] },
-    { nombre: "numeroVehiculosRequeridos", etiqueta: "Vehículos requeridos", tipo: "number", valor: 1 },
     { nombre: "numeroEntregasEsperadas", etiqueta: "Entregas esperadas", tipo: "number", valor: 1 },
-    { nombre: "requiereCadenaFrio", etiqueta: "Requiere cadena de frío", tipo: "check" },
-  ],
-};
-
-const necesidades: ModuloDef<Necesidad> = {
-  clave: "necesidades", grupo: "Planeación", titulo: "Necesidades del cliente", menu: "Necesidades", singular: "necesidad", femenino: true,
-  api: "/api/necesidades", icono: "necesidades",
-  descripcion: "Vehículos, días y franja horaria que requiere cada contrato.",
-  alias: { horarioValido: "horaFin" },
-  columnas: [
-    ["Contrato", (n) => <Doble principal={n.codigoContrato} secundario={n.razonSocialCliente} />],
-    ["Vehículos requeridos", (n) => <Doble principal={`${n.cantidadVehiculos} × ${n.tipoVehiculo}`}
-      secundario={`Mín. ${miles(n.capacidadMinimaKg)} kg${n.requiereCadenaFrio ? " · cadena de frío" : ""}`} />],
-    ["Días", (n) => <DiasSemanaChips lista={n.diasOperacion} />],
-    ["Horario", (n) => <span className="num">{hora(n.horaInicio)} – {hora(n.horaFin)}</span>],
-    ["Cobertura de flota", (n) => <Etiqueta tono={n.flotaSuficiente ? "ok" : "warn"}>{n.vehiculosDisponibles} de {n.cantidadVehiculos} disponibles</Etiqueta>],
-  ],
-  campos: [
-    { nombre: "operacionId", etiqueta: "Operación / contrato", tipo: "relacion", fuente: "operaciones", ancho: true,
-      mostrar: (o) => `${o.codigoContrato} — ${o.razonSocialCliente}` },
-    { nombre: "tipoVehiculo", etiqueta: "Tipo de vehículo", tipo: "select", opciones: TIPOS_VEHICULO },
-    { nombre: "cantidadVehiculos", etiqueta: "Cantidad de vehículos", tipo: "number", valor: 1 },
-    { nombre: "capacidadMinimaKg", etiqueta: "Capacidad mínima (kg)", tipo: "number" },
-    { nombre: "requiereCadenaFrio", etiqueta: "Requiere cadena de frío", tipo: "check" },
+    { nombre: "estado", etiqueta: "Estado", tipo: "select", opciones: [["ACTIVA", "Activa"], ["PAUSADA", "Pausada"], ["FINALIZADA", "Finalizada"]] },
+    { nombre: "s2", etiqueta: "2. Cuándo se opera", tipo: "seccion" },
     { nombre: "diasOperacion", etiqueta: "Días de operación", tipo: "dias", ancho: true },
     { nombre: "horaInicio", etiqueta: "Hora de inicio", tipo: "time", valor: "06:00" },
     { nombre: "horaFin", etiqueta: "Hora de finalización", tipo: "time", valor: "14:00" },
+    { nombre: "s3", etiqueta: "3. Vehículos que necesita el cliente", tipo: "seccion" },
+    { nombre: "tipoVehiculo", etiqueta: "Tipo de vehículo", tipo: "select", opciones: TIPOS_VEHICULO },
+    { nombre: "cantidadVehiculos", etiqueta: "Cantidad de vehículos", tipo: "number", valor: 1 },
+    { nombre: "capacidadMinimaKg", etiqueta: "Capacidad mínima por vehículo (kg)", tipo: "number" },
+    { nombre: "requiereCadenaFrio", etiqueta: "Requiere cadena de frío", tipo: "check" },
     { nombre: "observaciones", etiqueta: "Observaciones", tipo: "textarea", ancho: true, opcional: true },
   ],
 };
@@ -176,5 +160,6 @@ const rutas: ModuloDef<Ruta> = {
 };
 
 // Las zonas ya no son un modulo: son las localidades de Bogota guardadas en la base (ver FormularioRuta).
-export const MODULOS: Record<string, ModuloDef> = { clientes, vehiculos, conductores, operaciones, necesidades, rutas };
+// Las necesidades del cliente se registran dentro de Operaciones (un solo formulario).
+export const MODULOS: Record<string, ModuloDef> = { clientes, vehiculos, conductores, operaciones, rutas };
 export const CLAVES_MODULOS = Object.keys(MODULOS);

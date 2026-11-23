@@ -66,6 +66,36 @@ public final class DiasOperacion {
         return Optional.of(dias);
     }
 
+    private static final String[] NOMBRES_VISIBLES = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
+
+    /**
+     * Texto legible de un conjunto de dias que {@link #interpretar} vuelve a reconocer:
+     * "Todos los dias", "Lunes a sábado" o "Lunes, miércoles y viernes".
+     */
+    public static String describir(Set<DiaSemana> dias) {
+        if (dias == null || dias.isEmpty()) {
+            return "";
+        }
+        if (dias.size() == DiaSemana.values().length) {
+            return "Todos los dias";
+        }
+        java.util.List<DiaSemana> orden = dias.stream().sorted().toList();
+        DiaSemana primero = orden.get(0), ultimo = orden.get(orden.size() - 1);
+        boolean seguidos = ultimo.ordinal() - primero.ordinal() + 1 == orden.size();
+        if (seguidos && orden.size() >= 3) {
+            return NOMBRES_VISIBLES[primero.ordinal()] + " a " + NOMBRES_VISIBLES[ultimo.ordinal()].toLowerCase();
+        }
+        java.util.List<String> nombres = new java.util.ArrayList<>();
+        for (int i = 0; i < orden.size(); i++) {
+            String nombre = NOMBRES_VISIBLES[orden.get(i).ordinal()];
+            nombres.add(i == 0 ? nombre : nombre.toLowerCase());
+        }
+        if (nombres.size() == 1) {
+            return nombres.get(0);
+        }
+        return String.join(", ", nombres.subList(0, nombres.size() - 1)) + " y " + nombres.get(nombres.size() - 1);
+    }
+
     // Admite rangos que cruzan el fin de semana, por ejemplo "viernes a lunes".
     private static void agregarRango(Set<DiaSemana> dias, DiaSemana desde, DiaSemana hasta) {
         DiaSemana[] semana = DiaSemana.values();

@@ -264,7 +264,7 @@ function Asignacion({ ruta: r, alCerrar, alGuardar }: { ruta: Ruta; alCerrar: ()
           {necesidades.datos!.length ? (
             <div className="aviso info ancho">
               <div>
-                <strong>Necesidad registrada por el cliente</strong>
+                <strong>Lo que necesita el contrato</strong>
                 {necesidades.datos!.map((n) => (
                   <div key={n.id}>
                     {n.cantidadVehiculos} × {n.tipoVehiculo} (mín. {miles(n.capacidadMinimaKg)} kg{n.requiereCadenaFrio ? ", cadena de frío" : ""}) ·{" "}
@@ -273,7 +273,7 @@ function Asignacion({ ruta: r, alCerrar, alGuardar }: { ruta: Ruta; alCerrar: ()
                 ))}
               </div>
             </div>
-          ) : <div className="aviso warn ancho">El contrato no tiene necesidades registradas. Se recomienda registrarlas antes de asignar recursos.</div>}
+          ) : <div className="aviso warn ancho">El contrato aún no tiene definidos sus días, horario y vehículos. Complételos en Operaciones antes de asignar recursos.</div>}
           <div className={`campo ancho${errores.vehiculoId ? " con-error" : ""}`}>
             <label htmlFor="f-vehiculoId">Vehículo</label>
             <select id="f-vehiculoId" name="vehiculoId" defaultValue={r.vehiculoId ?? ""}>

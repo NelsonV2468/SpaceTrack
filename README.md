@@ -114,6 +114,9 @@ Al arrancar se carga el caso de ejemplo del acta (distribucion con cadena de fri
 - Las entregas esperadas no pueden quedar por debajo de las ya programadas en sus rutas, ni los vehiculos requeridos por debajo de los ya pedidos en sus necesidades.
 
 ### Necesidades del cliente
+- **Se registran dentro de Operaciones, en el mismo formulario del contrato** (no hay pantalla aparte). El formulario tiene tres bloques: *Contrato*, *Cuando se opera* (dias y horario) y *Vehiculos que necesita el cliente* (tipo, cantidad, capacidad y cadena de frio). Cada dato se pide una sola vez: los dias, la cantidad de vehiculos y la cadena de frio valen para el contrato y para su necesidad.
+- Se guarda todo en un paso (`/api/operaciones/planes`) y en una sola transaccion. La tabla de Operaciones muestra dias, horario, vehiculos y cuantos hay disponibles en la flota.
+- Las necesidades adicionales registradas antes de este cambio se conservan y se suman al contrato.
 - Tipo y cantidad de vehiculos, capacidad minima, cadena de frio, dias y franja horaria por contrato.
 - La suma de vehiculos de las necesidades no supera los vehiculos del contrato.
 - **Los dias de una necesidad deben estar dentro de los dias de operacion del contrato.**
@@ -178,6 +181,8 @@ Con el login activo (perfil `prod`): todos los roles pueden consultar (GET); ADM
 | GET, PUT, DELETE | `/api/conductores/{id}` | Consulta, actualiza o elimina un conductor |
 | GET, POST | `/api/operaciones` | Lista o registra contratos |
 | GET, PUT, DELETE | `/api/operaciones/{id}` | Consulta, actualiza o elimina un contrato |
+| GET, POST | `/api/operaciones/planes` | Lista o registra un contrato con su necesidad (formulario unico de Operaciones) |
+| GET, PUT, DELETE | `/api/operaciones/planes/{id}` | Consulta, actualiza o elimina un contrato con su necesidad |
 | GET, POST | `/api/necesidades` (`?operacionId=`) | Lista o registra necesidades del cliente |
 | GET, PUT, DELETE | `/api/necesidades/{id}` | Consulta, actualiza o elimina una necesidad |
 | GET | `/api/zonas` | Lista las zonas (localidades de Bogota) |
