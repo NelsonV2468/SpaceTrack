@@ -60,6 +60,7 @@ class RutaServiceTest {
     private final CierreDiarioRepository cierreRepository = mock(CierreDiarioRepository.class);
     private final RutaService rutaService = new RutaService(rutaRepository, zonaRepository, operacionRepository,
             vehiculoRepository, conductorRepository, entregaRepository, necesidadRepository, cierreRepository, new SimuladorUbicacion(),
+            mock(DetectorDesvio.class),
             Clock.fixed(AHORA.atZone(BOGOTA).toInstant(), BOGOTA));
 
     @Test
@@ -144,6 +145,18 @@ class RutaServiceTest {
 
         assertThat(respuesta.codigo()).isEqualTo("R-001");
         assertThat(respuesta.estado()).isEqualTo(EstadoRuta.PENDIENTE);
+    }
+
+    @Test
+    void sinDistanciaLaCalculaDesdeLaLocalidad() {
+        prepararCreacion(operacion(EstadoOperacion.ACTIVA));
+        when(rutaRepository.sumarEntregasProgramadasPorOperacion(10L)).thenReturn(0L);
+        when(rutaRepository.save(any(Ruta.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        RutaResponse respuesta = rutaService.crear(new RutaRequest("R-001", "Ruta Norte", 1L, 10L, "CEDI",
+                "Centro de Usaquén", null, 12));
+
+        assertThat(respuesta.distanciaEstimadaKm()).isPositive();
     }
 
     @Test

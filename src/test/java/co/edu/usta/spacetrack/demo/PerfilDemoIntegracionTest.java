@@ -1,6 +1,7 @@
 package co.edu.usta.spacetrack.demo;
 
 import co.edu.usta.spacetrack.alertas.domain.NivelAlerta;
+import co.edu.usta.spacetrack.alertas.domain.TipoAlerta;
 import co.edu.usta.spacetrack.alertas.dto.AlertaRutaResponse;
 import co.edu.usta.spacetrack.alertas.service.AlertaRutaService;
 import co.edu.usta.spacetrack.clientes.service.ClienteService;
@@ -10,6 +11,7 @@ import co.edu.usta.spacetrack.necesidades.service.NecesidadClienteService;
 import co.edu.usta.spacetrack.operaciones.service.OperacionService;
 import co.edu.usta.spacetrack.rutas.domain.EstadoRuta;
 import co.edu.usta.spacetrack.rutas.dto.RutaResponse;
+import co.edu.usta.spacetrack.rutas.dto.UbicacionRutaResponse;
 import co.edu.usta.spacetrack.rutas.service.RutaService;
 import co.edu.usta.spacetrack.vehiculos.service.VehiculoService;
 import co.edu.usta.spacetrack.zonas.dto.ZonaResponse;
@@ -72,7 +74,10 @@ class PerfilDemoIntegracionTest {
         assertThat(vehiculoService.listar()).hasSize(5).allSatisfy(v -> assertThat(v.requiereCadenaFrio()).isTrue());
         assertThat(conductorService.listar()).hasSize(5).extracting(ConductorResponse::fechaVencimientoLicencia)
                 .allSatisfy(vence -> assertThat(vence).isAfter(HOY));
-        assertThat(zonaService.listar()).hasSize(5).extracting(ZonaResponse::localidad).doesNotHaveDuplicates();
+        // Las zonas son las 19 localidades de Bogota guardadas en la base; las rutas usan 5 distintas.
+        assertThat(zonaService.listar()).hasSize(19).allSatisfy(z -> assertThat(z.catalogo()).isTrue())
+                .extracting(ZonaResponse::localidad).doesNotHaveDuplicates();
+        assertThat(rutaService.listar(null)).extracting(RutaResponse::zonaId).doesNotHaveDuplicates();
     }
 
     @Test
@@ -98,13 +103,31 @@ class PerfilDemoIntegracionTest {
     }
 
     @Test
-    void soloLaRutaAtrasadaGeneraAlertaCritica() {
+    void laRutaAtrasadaYLaDesviadaGeneranAlertas() {
         List<AlertaRutaResponse> alertas = alertaService.alertasActivas();
 
-        assertThat(alertas).singleElement().satisfies(a -> {
+        assertThat(alertas).hasSize(2).allSatisfy(a -> assertThat(a.nivel()).isEqualTo(NivelAlerta.CRITICA));
+        assertThat(alertas).anySatisfy(a -> {
             assertThat(a.codigoRuta()).isEqualTo("R-DEMO-02");
-            assertThat(a.nivel()).isEqualTo(NivelAlerta.CRITICA);
+            assertThat(a.tipo()).isEqualTo(TipoAlerta.FRANJA_HORARIA);
         });
+        assertThat(alertas).anySatisfy(a -> {
+            assertThat(a.codigoRuta()).isEqualTo("R-DEMO-03");
+            assertThat(a.tipo()).isEqualTo(TipoAlerta.DESVIO_RUTA);
+            assertThat(a.distanciaDesvioKm()).isGreaterThan(2.0);
+        });
+    }
+
+    @Test
+    void elMapaMuestraElVehiculoDesviadoFueraDeRuta() {
+        Map<String, UbicacionRutaResponse> ubicaciones = rutaService.ubicaciones().stream()
+                .collect(Collectors.toMap(UbicacionRutaResponse::codigo, Function.identity()));
+
+        UbicacionRutaResponse desviada = ubicaciones.get("R-DEMO-03");
+        assertThat(desviada.fueraDeRuta()).isTrue();
+        assertThat(desviada.vehiculo().latitud()).isEqualTo(CargaDatosDemo.LATITUD_DESVIO);
+        assertThat(desviada.descripcionPosicion()).startsWith("Fuera de ruta");
+        assertThat(ubicaciones.get("R-DEMO-01").fueraDeRuta()).isFalse();
     }
 
     @Test
